@@ -4,8 +4,8 @@
 // Define a window procedure function to handle messages
 LONG64 i = 0;
 float cameraX = 0.0f; 
-float cameraY = 1.0f; 
-float cameraZ = -5.0f; 
+float cameraY = 0.0f; 
+float cameraZ = 0.0f; 
 std::string cameraName = "MainCamera"; 
 float fov = 90.0f; //
 float aspectRatio = 16.0f / 9.0f; 
@@ -40,10 +40,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         i++;
         PAINTSTRUCT ps;
         mesh cube = CreateCube(0.4f, 0.5f, 1.0f, 0.5f);
+        mesh cube2 = CreateCube(0.0f, 0.0f, 1.0f, 0.5f);
+
 
         transform(cube, -0.0f, -0.0f, 2.0f);
-        rotate(cube,0, 0, 0);
+        transform(cube2, -0.0f, -0.0f, 2.0f);
 
+        rotate(cube,0, 0, 0);
 
         point2D test(-0.1, 0);
         RECT rect;
@@ -69,6 +72,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         fixPoint(test, width, height);
         //SetPixel(memdc,  test.x, test.y, redColor);
        DrawMesh(memdc, cube, redColor, width, height, cam);
+       DrawMesh(memdc, cube2, redColor, width, height, cam);
+
         
 
 

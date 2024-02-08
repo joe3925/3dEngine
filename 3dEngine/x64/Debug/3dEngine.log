@@ -1,14 +1,14 @@
 ﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(531,5): warning MSB8028: The intermediate directory (x64\Debug\) contains files shared from another project (3dRender.vcxproj, DirectX3dEngine.vcxproj).  This can lead to incorrect clean and rebuild behavior.
   main.cpp
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(47,16): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(96,21): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(96,15): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(97,22): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(97,15): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(98,22): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(98,15): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(217,15): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\render.hpp(229,16): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:\Users\boden\source\repos\3dEngineold\3dEngine\main.cpp(48,23): warning C4305: 'argument': truncation from 'double' to 'float'
-C:\Users\boden\source\repos\3dEngineold\3dEngine\main.cpp(85): warning C4715: 'WindowProc': not all control paths return a value
-  3dEngine.vcxproj -> C:\Users\boden\source\repos\3dEngineold\3dEngine\x64\Debug\3dEngine.exe
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(47,16): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(96,21): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(96,15): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(97,22): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(97,15): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(98,22): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(98,15): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(224,15): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\render.hpp(236,16): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\Users\boden\source\repos\3dEngine\3dEngine\main.cpp(51,23): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Users\boden\source\repos\3dEngine\3dEngine\main.cpp(90): warning C4715: 'WindowProc': not all control paths return a value
+  3dEngine.vcxproj -> C:\Users\boden\source\repos\3dEngine\3dEngine\x64\Debug\3dEngine.exe

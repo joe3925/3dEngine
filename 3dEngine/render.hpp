@@ -47,7 +47,7 @@ public:
 		float yScale = 1.0f / tan((fov / 2.0f) * (M_PI / 180.0f));
 		float xScale = yScale / aspectRatio;
 		float frustumLength = farPlane - nearPlane;
-
+		
 		gmtl::Matrix44f proj;
 		proj.set(xScale, 0, 0, 0,
 			0, yScale, 0, 0,
@@ -184,8 +184,14 @@ void rotate(mesh& Mesh, float x, float y, float z) {
 	}
 }
 point2D Project3Dto2D(const point& pt3D, const camera& cam) {
+	// Translate the point relative to the camera position
+	gmtl::Vec4f pointRelativeToCamera = pt3D.Postition;
+	pointRelativeToCamera[0] -= cam.Postition[0];
+	pointRelativeToCamera[1] -= cam.Postition[1];
+	pointRelativeToCamera[2] -= cam.Postition[2];
 
-	gmtl::Vec4f projected = cam.projectionMatrix * pt3D.Postition;
+	// Apply the projection matrix to the translated point
+	gmtl::Vec4f projected = cam.projectionMatrix * pointRelativeToCamera;
 
 	// Perform perspective divide
 	if (projected[3] != 0.0f) { // Avoid division by zero
@@ -198,6 +204,7 @@ point2D Project3Dto2D(const point& pt3D, const camera& cam) {
 
 	return point2D(x, y);
 }
+
 POINT ConvertFromPoint2D( point2D& pt2D) {
 	POINT pt;
 	pt.x = static_cast<LONG>(pt2D.x); 

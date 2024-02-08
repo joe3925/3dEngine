@@ -14,7 +14,7 @@ public:
 		Postition[0] = x;
 		Postition[1] = y;
 		Postition[2] = z;
-		Postition[3] = 1.5f;
+		Postition[3] = 1.0f;
 
 	}
 
@@ -39,7 +39,7 @@ class triangle {
 public:
 	point p1, p2, p3;
 
-	triangle(const point& point1, const point& point2, const point& point3)
+	triangle(const point point1, const point point2, const point point3)
 		: p1(point1), p2(point2), p3(point3) {}
 
 };
@@ -59,7 +59,7 @@ void DrawMesh(HDC hdc, mesh &Mesh, COLORREF color, double width, double height);
 
 point2D Project3Dto2D(point& pt3D);
 POINT ConvertFromPoint2D(point2D& pt2D);
-void fixPoint(point2D& p, int width, int height);
+void fixPoint(point2D &p, int width, int height);
 
 
 void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height) {
@@ -75,10 +75,10 @@ void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, doub
 	fixPoint(p1, width,height);
 	fixPoint(p2, width, height);
 	fixPoint(p3, width, height);
-	POINT trianglePoints[4] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3), ConvertFromPoint2D(p1)}; 
+	POINT trianglePoints[3] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3)}; 
 
 	// Draw the triangle
-	Polyline(hdc, trianglePoints, 4); 
+	Polyline(hdc, trianglePoints, 3); 
 
 	SelectObject(hdc, hOldPen);
 	DeleteObject(hPen);
@@ -89,6 +89,44 @@ void DrawMesh(HDC hdc, mesh &Mesh, COLORREF color, double width, double height) 
 	}
 	
 }
+mesh CreateCube(float center_x, float center_y, float center_z, float edge_length) {
+	float half_edge = edge_length / 2.0f;
+	std::vector<point> vertices = {
+		// Front face
+		point(center_x - half_edge, center_y - half_edge, center_z + half_edge),
+		point(center_x + half_edge, center_y - half_edge, center_z + half_edge),
+		point(center_x + half_edge, center_y + half_edge, center_z + half_edge),
+		point(center_x - half_edge, center_y + half_edge, center_z + half_edge),
+		// Back face
+		point(center_x - half_edge, center_y - half_edge, center_z - half_edge),
+		point(center_x + half_edge, center_y - half_edge, center_z - half_edge),
+		point(center_x + half_edge, center_y + half_edge, center_z - half_edge),
+		point(center_x - half_edge, center_y + half_edge, center_z - half_edge),
+	};
+
+	mesh cube_mesh;
+	// Front face
+	cube_mesh.vertexList.push_back(triangle(vertices[0], vertices[1], vertices[2]));
+	cube_mesh.vertexList.push_back(triangle(vertices[2], vertices[3], vertices[0]));
+	// Right face
+	cube_mesh.vertexList.push_back(triangle(vertices[1], vertices[5], vertices[6]));
+	cube_mesh.vertexList.push_back(triangle(vertices[6], vertices[2], vertices[1]));
+	// Back face
+	cube_mesh.vertexList.push_back(triangle(vertices[5], vertices[4], vertices[7]));
+	cube_mesh.vertexList.push_back(triangle(vertices[7], vertices[6], vertices[5]));
+	// Left face
+	cube_mesh.vertexList.push_back(triangle(vertices[4], vertices[0], vertices[3]));
+	cube_mesh.vertexList.push_back(triangle(vertices[3], vertices[7], vertices[4]));
+	// Top face
+	cube_mesh.vertexList.push_back(triangle(vertices[3], vertices[2], vertices[6]));
+	cube_mesh.vertexList.push_back(triangle(vertices[6], vertices[7], vertices[3]));
+	// Bottom face
+	cube_mesh.vertexList.push_back(triangle(vertices[4], vertices[5], vertices[1]));
+	cube_mesh.vertexList.push_back(triangle(vertices[1], vertices[0], vertices[4]));
+
+	return cube_mesh;
+}
+
 
 void transform(mesh &Mesh, float x, float y, float z) {
 	for (int i = 0; i < Mesh.vertexList.size(); i++) {
@@ -145,7 +183,7 @@ void fixPoint (point2D &p, int width, int height) {
 		p.x = p.x + width / 2; // p.x is positive so the coord is on the right side so add width/2
 	}
 	if (p.x < 0) {
-		p.x = p.x * width / 2; //get the percent of half the width 
+		p.x = (width / 2) - (abs(p.x) * width / 2); //get the percent of half the width 
 	}
 	if (p.x == 0) {
 		p.x = width / 2; //get the percent of half the width 
@@ -157,10 +195,9 @@ void fixPoint (point2D &p, int width, int height) {
 		p.y = p.y + height / 2; // p.x is positive so the coord is on the right side so add width/2
 	}
 	if (p.y < 0) {
-		p.y= p.y * height / 2; //get the percent of half the height 
+		p.y= (width / 2) - (abs(p.y) * height / 2); //get the percent of half the height 
 	}
 	if (p.y == 0) {
 		p.y = height / 2; //get the percent of half the width 
 	}
-	return;
 }

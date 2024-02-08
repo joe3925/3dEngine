@@ -1,7 +1,6 @@
 
 #include "render.hpp"
 // Define a window procedure function to handle messages
-
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
     case WM_DESTROY:
@@ -9,42 +8,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         return 0;
     case WM_PAINT:
     {
+       
         PAINTSTRUCT ps;
-        std::vector<point> pointlist;
-        pointlist.push_back(point(0.0f, 0.0f, 0.0f));
-        pointlist.push_back(point(1.0f, 0.0f, 0.0f));
-        pointlist.push_back(point(1.0f, 1.0f, 0.0f));
-        pointlist.push_back(point(0.0f, 1.0f, 0.0f));
-        pointlist.push_back(point(0.0f, 0.0f, 1.0f));
-        pointlist.push_back(point(1.0f, 0.0f, 1.0f));
-        pointlist.push_back(point(1.0f, 1.0f, 1.0f));
-        pointlist.push_back(point(0.0f, 1.0f, 1.0f));
-        pointlist.push_back(point(0.5f, 0.5f, 0.0f));
-        pointlist.push_back(point(0.5f, 0.5f, 1.0f));
-        mesh Mesh;
-        Mesh.vertexList.push_back(triangle(pointlist[0], pointlist[4], pointlist[5]));
-        Mesh.vertexList.push_back(triangle(pointlist[0], pointlist[5], pointlist[1]));
-        Mesh.vertexList.push_back(triangle(pointlist[1], pointlist[5], pointlist[6]));
-        Mesh.vertexList.push_back(triangle(pointlist[1], pointlist[6], pointlist[2]));
-        Mesh.vertexList.push_back(triangle(pointlist[2], pointlist[6], pointlist[7]));
-        Mesh.vertexList.push_back(triangle(pointlist[2], pointlist[7], pointlist[3]));
-        Mesh.vertexList.push_back(triangle(pointlist[3], pointlist[7], pointlist[4]));
-        Mesh.vertexList.push_back(triangle(pointlist[3], pointlist[4], pointlist[0]));
-        Mesh.vertexList.push_back(triangle(pointlist[8], pointlist[5], pointlist[4]));
-        Mesh.vertexList.push_back(triangle(pointlist[8], pointlist[6], pointlist[5]));
-        Mesh.vertexList.push_back(triangle(pointlist[8], pointlist[7], pointlist[6]));
-        Mesh.vertexList.push_back(triangle(pointlist[8], pointlist[4], pointlist[7]));
-        Mesh.vertexList.push_back(triangle(pointlist[9], pointlist[5], pointlist[4]));
-        Mesh.vertexList.push_back(triangle(pointlist[9], pointlist[6], pointlist[5]));
-        Mesh.vertexList.push_back(triangle(pointlist[9], pointlist[7], pointlist[6]));
-        Mesh.vertexList.push_back(triangle(pointlist[9], pointlist[4], pointlist[7]));
-        transform(Mesh, 0, 0, 2);
+        mesh cube = CreateCube(0.4f, 0.5f, 2.0f, 0.9f);
+
+        transform(cube, -0.0f, -0.0f, 2.0f);
+        rotate(cube, 0.0, 0.0, 0.0);
+        point2D test(-0.1, 0);
         RECT rect;
         int width;
         int height;
         HDC hdc = BeginPaint(hwnd, &ps);
         camera Camera(0, 1, 0, "cam", 90);
-        Camera.Postition[1];
         if (GetWindowRect(hwnd, &rect))
         {
             width = rect.right - rect.left;
@@ -61,7 +36,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         SelectObject(memdc, hbitmap);
         // Fill the bitmap with red color
         COLORREF redColor = RGB(255, 0, 0);
-        DrawMesh(memdc, Mesh, redColor, width, height);
+        fixPoint(test, width, height);
+        //SetPixel(memdc,  test.x, test.y, redColor);
+        DrawMesh(memdc, cube, redColor, width, height);
+
 
         BitBlt(hdc, 0, 0, width, height, memdc, 0, 0, SRCCOPY);
         EndPaint(hwnd, &ps);

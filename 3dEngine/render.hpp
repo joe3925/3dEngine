@@ -1,4 +1,5 @@
 #pragma once
+# define M_PI           3.14159265358979323846
 
 #include <gmtl/gmtl.h>
 #include <windows.h>
@@ -6,6 +7,7 @@
 #include <string>
 #include <iostream>
 #include <wingdi.h>
+#include <math.h>
 
 struct point {
 public:
@@ -30,9 +32,28 @@ public:
 class camera : public point {
 public:
 	float fov;
+	float nearPlane;
+	float farPlane;
+	float aspectRatio; // Typically window width / height
+	gmtl::Matrix44f projectionMatrix;
 	std::string name;
-	camera(float x, float y, float z, std::string name , float fov)
-		: point(x, y, z), fov(fov), name(name){
+
+	camera(float x, float y, float z, std::string name, float fov, float aspectRatio, float nearPlane, float farPlane)
+		: point(x, y, z), fov(fov), aspectRatio(aspectRatio), nearPlane(nearPlane), farPlane(farPlane), name(name) {
+		calculateProjectionMatrix();
+	}
+
+	void calculateProjectionMatrix() {
+		float yScale = 1.0f / tan((fov / 2.0f) * (M_PI / 180.0f));
+		float xScale = yScale / aspectRatio;
+		float frustumLength = farPlane - nearPlane;
+
+		gmtl::Matrix44f proj;
+		proj.set(xScale, 0, 0, 0,
+			0, yScale, 0, 0,
+			0, 0, -((farPlane + nearPlane) / frustumLength), -1,
+			0, 0, -((2 * nearPlane * farPlane) / frustumLength), 0);
+		projectionMatrix = proj;
 	}
 };
 class triangle {
@@ -54,20 +75,20 @@ public:
 
 
 
-void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height);
-void DrawMesh(HDC hdc, mesh &Mesh, COLORREF color, double width, double height);
+void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height, const camera& cam);
+void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, const camera& cam);
 
-point2D Project3Dto2D(point& pt3D);
 POINT ConvertFromPoint2D(point2D& pt2D);
 void fixPoint(point2D &p, int width, int height);
+point2D Project3Dto2D(const point& pt3D, const camera& cam);
 
 
-void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height) {
+void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height, const camera& cam) {
 
 
-	point2D p1 = Project3Dto2D(Triangle.p1);
-	point2D p2 = Project3Dto2D(Triangle.p2);
-	point2D p3 = Project3Dto2D(Triangle.p3);
+	point2D p1 = Project3Dto2D(Triangle.p1, cam);
+	point2D p2 = Project3Dto2D(Triangle.p2, cam);
+	point2D p3 = Project3Dto2D(Triangle.p3, cam);
 	HPEN hPen = CreatePen(PS_SOLID, 1, color);
 	HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 	
@@ -75,7 +96,7 @@ void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, doub
 	fixPoint(p1, width,height);
 	fixPoint(p2, width, height);
 	fixPoint(p3, width, height);
-	POINT trianglePoints[3] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3)}; 
+	POINT trianglePoints[3] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3) };
 
 	// Draw the triangle
 	Polyline(hdc, trianglePoints, 3); 
@@ -83,9 +104,9 @@ void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, doub
 	SelectObject(hdc, hOldPen);
 	DeleteObject(hPen);
 }
-void DrawMesh(HDC hdc, mesh &Mesh, COLORREF color, double width, double height) {
+void DrawMesh(HDC hdc, mesh &Mesh, COLORREF color, double width, double height, const camera& cam) {
 	for (int i = 0; i < Mesh.vertexList.size(); i++) {
-		DrawTriangle(hdc, Mesh.vertexList[i], color, width, height);
+		DrawTriangle(hdc, Mesh.vertexList[i], color, width, height, cam);
 	}
 	
 }
@@ -162,11 +183,18 @@ void rotate(mesh& Mesh, float x, float y, float z) {
 		tri.p3.Postition = combinedRotationMatrix * tri.p3.Postition;
 	}
 }
+point2D Project3Dto2D(const point& pt3D, const camera& cam) {
 
-point2D Project3Dto2D( point& pt3D) {
-	
-	float x = pt3D.Postition[0]*(pt3D.Postition[3] / pt3D.Postition[2]);
-	float y = pt3D.Postition[1] * (pt3D.Postition[3] / pt3D.Postition[2]);
+	gmtl::Vec4f projected = cam.projectionMatrix * pt3D.Postition;
+
+	// Perform perspective divide
+	if (projected[3] != 0.0f) { // Avoid division by zero
+		projected[0] /= projected[3];
+		projected[1] /= projected[3];
+	}
+
+	float x = projected[0];
+	float y = projected[1];
 
 	return point2D(x, y);
 }

@@ -8,15 +8,17 @@
 #include <iostream>
 #include <wingdi.h>
 #include <math.h>
+#include <chrono>
+#include <sstream>
 
 struct point {
 public:
-	gmtl::Vec4f Postition;
+	gmtl::Vec4f Position;
 	point(float x, float y, float z) {
-		Postition[0] = x;
-		Postition[1] = y;
-		Postition[2] = z;
-		Postition[3] = 1.0f;
+		Position[0] = x;
+		Position[1] = y;
+		Position[2] = z;
+		Position[3] = 0.0f;
 
 	}
 
@@ -37,6 +39,10 @@ public:
 	float aspectRatio; // Typically window width / height
 	gmtl::Matrix44f projectionMatrix;
 	std::string name;
+	//rotation stuff
+	gmtl::Vec3f forward;
+	gmtl::Vec3f up = { 0.0f, 1.0f, 0.0f };
+	gmtl::Vec3f right;
 
 	camera(float x, float y, float z, std::string name, float fov, float aspectRatio, float nearPlane, float farPlane)
 		: point(x, y, z), fov(fov), aspectRatio(aspectRatio), nearPlane(nearPlane), farPlane(farPlane), name(name) {
@@ -55,6 +61,7 @@ public:
 			0, 0, -((2 * nearPlane * farPlane) / frustumLength), 0);
 		projectionMatrix = proj;
 	}
+
 };
 class triangle {
 public:
@@ -81,6 +88,7 @@ void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, 
 POINT ConvertFromPoint2D(point2D& pt2D);
 void fixPoint(point2D &p, int width, int height);
 point2D Project3Dto2D(const point& pt3D, const camera& cam);
+gmtl::Vec4f translateRotateTranslate(const gmtl::Vec4f& position, const gmtl::Vec4f& center, const gmtl::Matrix44f& rotationMatrix);
 
 
 void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height, const camera& cam) {
@@ -96,10 +104,10 @@ void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, doub
 	fixPoint(p1, width,height);
 	fixPoint(p2, width, height);
 	fixPoint(p3, width, height);
-	POINT trianglePoints[3] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3) };
+	POINT trianglePoints[4] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3),ConvertFromPoint2D(p1) };
 
 	// Draw the triangle
-	Polyline(hdc, trianglePoints, 3); 
+	Polyline(hdc, trianglePoints, 4); 
 
 	SelectObject(hdc, hOldPen);
 	DeleteObject(hPen);
@@ -152,49 +160,65 @@ mesh CreateCube(float center_x, float center_y, float center_z, float edge_lengt
 void transform(mesh &Mesh, float x, float y, float z) {
 	for (int i = 0; i < Mesh.vertexList.size(); i++) {
 		
-		Mesh.vertexList[i].p1.Postition[0] += x;
-		Mesh.vertexList[i].p1.Postition[1] += y;
-		Mesh.vertexList[i].p1.Postition[2] += z;
+		Mesh.vertexList[i].p1.Position[0] += x;
+		Mesh.vertexList[i].p1.Position[1] += y;
+		Mesh.vertexList[i].p1.Position[2] += z;
 
-		Mesh.vertexList[i].p2.Postition[0] += x;
-		Mesh.vertexList[i].p2.Postition[1] += y;
-		Mesh.vertexList[i].p2.Postition[2] += z;
+		Mesh.vertexList[i].p2.Position[0] += x;
+		Mesh.vertexList[i].p2.Position[1] += y;
+		Mesh.vertexList[i].p2.Position[2] += z;
 
-		Mesh.vertexList[i].p3.Postition[0] += x;
-		Mesh.vertexList[i].p3.Postition[1] += y;
-		Mesh.vertexList[i].p3.Postition[2] += z;
+		Mesh.vertexList[i].p3.Position[0] += x;
+		Mesh.vertexList[i].p3.Position[1] += y;
+		Mesh.vertexList[i].p3.Position[2] += z;
 	}
 }
-//TODO: test this
 void rotate(mesh& Mesh, float x, float y, float z) {
+	// Calculate the center of the mesh
+	gmtl::Vec4f center(0.0f, 0.0f, 0.0f, 1.0f);
+	for (const triangle& tri : Mesh.vertexList) {
+		center += tri.p1.Position + tri.p2.Position + tri.p3.Position;
+	}
+	center /= (Mesh.vertexList.size() * 3); // Average center position
+
 	// Create rotation matrices for X, Y, and Z axes
 	gmtl::Matrix44f rotationMatrixX, rotationMatrixY, rotationMatrixZ;
 	gmtl::setRot(rotationMatrixX, gmtl::AxisAngle<float>(gmtl::Math::deg2Rad(x), 1.0f, 0.0f, 0.0f)); // Rotate around X axis
 	gmtl::setRot(rotationMatrixY, gmtl::AxisAngle<float>(gmtl::Math::deg2Rad(y), 0.0f, 1.0f, 0.0f)); // Rotate around Y axis
 	gmtl::setRot(rotationMatrixZ, gmtl::AxisAngle<float>(gmtl::Math::deg2Rad(z), 0.0f, 0.0f, 1.0f)); // Rotate around Z axis
 
-	// Combine the rotations (order matters )
+	// Combine the rotations (order matters)
 	gmtl::Matrix44f combinedRotationMatrix = rotationMatrixZ * rotationMatrixY * rotationMatrixX;
 
-	// Apply the combined rotation to each vertex in each triangle of the mesh
+	// move the mesh to the orgin rotate it and move it back
 	for (triangle& tri : Mesh.vertexList) {
-		tri.p1.Postition = combinedRotationMatrix * tri.p1.Postition;
-		tri.p2.Postition = combinedRotationMatrix * tri.p2.Postition;
-		tri.p3.Postition = combinedRotationMatrix * tri.p3.Postition;
+		tri.p1.Position = translateRotateTranslate(tri.p1.Position, center, combinedRotationMatrix);
+		tri.p2.Position = translateRotateTranslate(tri.p2.Position, center, combinedRotationMatrix);
+		tri.p3.Position = translateRotateTranslate(tri.p3.Position, center, combinedRotationMatrix);
 	}
+}
+
+gmtl::Vec4f translateRotateTranslate(const gmtl::Vec4f& position, const gmtl::Vec4f& center, const gmtl::Matrix44f& rotationMatrix) {
+	// Translate to origin
+	gmtl::Vec4f translatedPosition = position - center;
+	// Rotate
+	translatedPosition = rotationMatrix * translatedPosition;
+	// Translate back
+	translatedPosition += center;
+	return translatedPosition;
 }
 point2D Project3Dto2D(const point& pt3D, const camera& cam) {
 	// Translate the point relative to the camera position
-	gmtl::Vec4f pointRelativeToCamera = pt3D.Postition;
-	pointRelativeToCamera[0] -= cam.Postition[0];
-	pointRelativeToCamera[1] -= cam.Postition[1];
-	pointRelativeToCamera[2] -= cam.Postition[2];
+	gmtl::Vec4f pointRelativeToCamera = pt3D.Position;
+	pointRelativeToCamera[0] -= cam.Position[0];
+	pointRelativeToCamera[1] -= cam.Position[1];
+	pointRelativeToCamera[2] -= cam.Position[2];
 
 	// Apply the projection matrix to the translated point
 	gmtl::Vec4f projected = cam.projectionMatrix * pointRelativeToCamera;
 
 	// Perform perspective divide
-	if (projected[3] != 0.0f) { // Avoid division by zero
+	if (projected[3] != 0.0f) {
 		projected[0] /= projected[3];
 		projected[1] /= projected[3];
 	}
@@ -234,5 +258,29 @@ void fixPoint (point2D &p, int width, int height) {
 	}
 	if (p.y == 0) {
 		p.y = height / 2; //get the percent of half the width 
+	}
+}
+void moveCam(camera &cam, float moveSpeed) {
+	if (GetAsyncKeyState('W') & 0x8000) {
+		cam.Position[2] += moveSpeed;
+	}
+
+	if (GetAsyncKeyState('A') & 0x8000) {
+		cam.Position[0] += moveSpeed;
+	}
+
+	if (GetAsyncKeyState('S') & 0x8000) {
+		cam.Position[2] -= moveSpeed;
+	}
+
+	if (GetAsyncKeyState('D') & 0x8000) {
+		cam.Position[0] -= moveSpeed;
+	}
+
+	if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+		cam.Position[1] += moveSpeed;
+	}
+	if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
+		cam.Position[1] -= moveSpeed;
 	}
 }

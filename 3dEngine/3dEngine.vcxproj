@@ -109,7 +109,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>"C:\Users\boden\source\repos\3dEngine\3dEngine"</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>"C:\Users\boden\source\repos\3dEngine\3dEngine";"C:\Users\Boden\Documents\3dEngine\3dEngine"</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

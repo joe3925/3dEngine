@@ -1,9 +1,7 @@
 
 #include "render.hpp"
 #define IDT_TIMER1 1
-// Define a window procedure function to handle messages
-LONG64 i = 0;
-float cameraX = 0.0f; 
+float cameraX = 0.0f;;
 float cameraY = 0.0f; 
 float cameraZ = 0.0f; 
 std::string cameraName = "MainCamera"; 
@@ -11,11 +9,13 @@ float fov = 90.0f; //
 float aspectRatio = 16.0f / 9.0f; 
 float nearPlane = 0.1f; // Near clipping plane
 float farPlane = 100.0f; // Far clipping plane
+camera cam(cameraX, cameraY, cameraZ, cameraName, fov, aspectRatio, nearPlane, farPlane);
+mesh cube = CreateCube(0.4f, 0.5f, 5.0f, 0.5f);
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
     case WM_CREATE:
-        // Set up a timer that ticks every 100 milliseconds (1/10th of a second)
-        if (SetTimer(hwnd, IDT_TIMER1, 1, NULL) != 0) {
+        if (SetTimer(hwnd, IDT_TIMER1, 0, NULL) != 0) {
             break;
         }
         return 0;
@@ -36,19 +36,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         return 0;
     case WM_PAINT:
     {
-        camera cam(cameraX, cameraY, cameraZ, cameraName, fov, aspectRatio, nearPlane, farPlane);
-        i++;
+        auto start = std::chrono::high_resolution_clock::now();
         PAINTSTRUCT ps;
-        mesh cube = CreateCube(0.4f, 0.5f, 1.0f, 0.5f);
-        mesh cube2 = CreateCube(0.0f, 0.0f, 1.0f, 0.5f);
 
-
-        transform(cube, -0.0f, -0.0f, 2.0f);
-        transform(cube2, -0.0f, -0.0f, 2.0f);
-
-        rotate(cube,0, 0, 0);
-
-        point2D test(-0.1, 0);
         RECT rect;
         int width;
         int height;
@@ -61,24 +51,39 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         else {
             break;
         }
+        aspectRatio = width / height;
+        moveCam(cam, 0.05f);
+        transform(cube, 0, 0, 0.0f);
+        rotate(cube, 0, 1.5, 0);
+
+ 
         HDC hdesktop = GetDC(0);
         HDC memdc = CreateCompatibleDC(hdesktop);
        
         HBITMAP hbitmap = CreateCompatibleBitmap(hdesktop, width, height);
         
+        
         SelectObject(memdc, hbitmap);
         // Fill the bitmap with red color
-        COLORREF redColor = RGB(255, 0, 0);
-        fixPoint(test, width, height);
-        //SetPixel(memdc,  test.x, test.y, redColor);
-       DrawMesh(memdc, cube, redColor, width, height, cam);
-       DrawMesh(memdc, cube2, redColor, width, height, cam);
-
         
-
-
+        COLORREF redColor = RGB(255, 0, 0);
+        DrawMesh(memdc, cube, redColor, width, height, cam);
+        //fps calculation
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+        std::wstringstream ss;
+        ss << L"FPS: " << 1e+9/duration.count();
+        std::wstring FPSStr = ss.str();
+        SetTextColor(memdc, RGB(255, 255, 255));
+        SetBkMode(memdc, TRANSPARENT);
+        TextOut(memdc, 50, 50, FPSStr.c_str(), 13);
+        //apply frame
         BitBlt(hdc, 0, 0, width, height, memdc, 0, 0, SRCCOPY);
-        EndPaint(hwnd, &ps);
+        //clean up
+        DeleteObject(hbitmap); 
+        DeleteDC(memdc);
+        ReleaseDC(0, hdesktop); 
+        EndPaint(hwnd, &ps); 
 
 
 

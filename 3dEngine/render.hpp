@@ -2,7 +2,7 @@
 # define M_PI           3.14159265358979323846
 
 #include <gmtl/gmtl.h>
-#include <windows.h>
+#include <windows.H>
 #include <vector>
 #include <string>
 #include <iostream>
@@ -10,6 +10,8 @@
 #include <math.h>
 #include <chrono>
 #include <sstream>
+#include <fstream>
+
 
 struct point {
 public:
@@ -40,9 +42,6 @@ public:
 	gmtl::Matrix44f projectionMatrix;
 	std::string name;
 	//rotation stuff
-	gmtl::Vec3f forward;
-	gmtl::Vec3f up = { 0.0f, 1.0f, 0.0f };
-	gmtl::Vec3f right;
 
 	camera(float x, float y, float z, std::string name, float fov, float aspectRatio, float nearPlane, float farPlane)
 		: point(x, y, z), fov(fov), aspectRatio(aspectRatio), nearPlane(nearPlane), farPlane(farPlane), name(name) {
@@ -50,7 +49,7 @@ public:
 	}
 
 	void calculateProjectionMatrix() {
-		float yScale = 1.0f / tan((fov / 2.0f) * (M_PI / 180.0f));
+		float yScale = 1.0 / tan((fov / 2.0f) * (M_PI / 180.0f));
 		float xScale = yScale / aspectRatio;
 		float frustumLength = farPlane - nearPlane;
 		
@@ -84,7 +83,6 @@ public:
 
 void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height, const camera& cam);
 void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, const camera& cam);
-
 POINT ConvertFromPoint2D(point2D& pt2D);
 void fixPoint(point2D &p, int width, int height);
 point2D Project3Dto2D(const point& pt3D, const camera& cam);
@@ -104,7 +102,7 @@ void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, doub
 	fixPoint(p1, width,height);
 	fixPoint(p2, width, height);
 	fixPoint(p3, width, height);
-	POINT trianglePoints[4] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3),ConvertFromPoint2D(p1) };
+	POINT trianglePoints[4] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3), ConvertFromPoint2D(p1) };
 
 	// Draw the triangle
 	Polyline(hdc, trianglePoints, 4); 
@@ -173,13 +171,16 @@ void transform(mesh &Mesh, float x, float y, float z) {
 		Mesh.vertexList[i].p3.Position[2] += z;
 	}
 }
-void rotate(mesh& Mesh, float x, float y, float z) {
-	// Calculate the center of the mesh
+gmtl::Vec4f Center(mesh& Mesh) {
 	gmtl::Vec4f center(0.0f, 0.0f, 0.0f, 1.0f);
 	for (const triangle& tri : Mesh.vertexList) {
 		center += tri.p1.Position + tri.p2.Position + tri.p3.Position;
-	}
-	center /= (Mesh.vertexList.size() * 3); // Average center position
+	} // Average center position
+	return center /= (Mesh.vertexList.size() * 3);
+}
+void rotate(mesh& Mesh, float x, float y, float z) {
+	// Calculate the center of the mesh
+	gmtl::Vec4f center = Center(Mesh);
 
 	// Create rotation matrices for X, Y, and Z axes
 	gmtl::Matrix44f rotationMatrixX, rotationMatrixY, rotationMatrixZ;
@@ -207,6 +208,9 @@ gmtl::Vec4f translateRotateTranslate(const gmtl::Vec4f& position, const gmtl::Ve
 	translatedPosition += center;
 	return translatedPosition;
 }
+
+
+
 point2D Project3Dto2D(const point& pt3D, const camera& cam) {
 	// Translate the point relative to the camera position
 	gmtl::Vec4f pointRelativeToCamera = pt3D.Position;
@@ -236,29 +240,11 @@ POINT ConvertFromPoint2D( point2D& pt2D) {
 	return pt;
 }
 
-void fixPoint (point2D &p, int width, int height) {
-	if (p.x > 0) {
-		p.x = p.x * width/2; //get the percent of half the width 
-		p.x = p.x + width / 2; // p.x is positive so the coord is on the right side so add width/2
-	}
-	if (p.x < 0) {
-		p.x = (width / 2) - (abs(p.x) * width / 2); //get the percent of half the width 
-	}
-	if (p.x == 0) {
-		p.x = width / 2; //get the percent of half the width 
-	}
-	
-	//do the same for y
-	if (p.y > 0) {
-		p.y = p.y * height / 2; //get the percent of half the height 
-		p.y = p.y + height / 2; // p.x is positive so the coord is on the right side so add width/2
-	}
-	if (p.y < 0) {
-		p.y= (width / 2) - (abs(p.y) * height / 2); //get the percent of half the height 
-	}
-	if (p.y == 0) {
-		p.y = height / 2; //get the percent of half the width 
-	}
+void fixPoint(point2D& p, int width, int height) {
+	p.x = (p.x + 1.0f) * 0.5f * width;
+
+
+	p.y = (1.0f - p.y) * 0.5f * height;
 }
 void moveCam(camera &cam, float moveSpeed) {
 	if (GetAsyncKeyState('W') & 0x8000) {
@@ -278,9 +264,47 @@ void moveCam(camera &cam, float moveSpeed) {
 	}
 
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-		cam.Position[1] += moveSpeed;
-	}
-	if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
 		cam.Position[1] -= moveSpeed;
 	}
+	if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
+		cam.Position[1] += moveSpeed;
+	}
+}
+
+mesh loadOBJ(const std::string& filename) {
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		return  mesh();
+	}
+
+	mesh resultMesh;
+	std::vector<point> vertices;
+
+	std::string line;
+	while (std::getline(file, line)) {
+		std::istringstream iss(line);
+		std::string prefix;
+		iss >> prefix;
+
+		if (prefix == "v") {
+			// Vertex position
+			float x, y, z;
+			iss >> x >> y >> z;
+			vertices.emplace_back(x, y, z);
+		}
+		else if (prefix == "f") {
+			std::string vertex1, vertex2, vertex3;
+			iss >> vertex1 >> vertex2 >> vertex3;
+
+			int idx1 = std::stoi(vertex1.substr(0, vertex1.find('/')));
+			int idx2 = std::stoi(vertex2.substr(0, vertex2.find('/')));
+			int idx3 = std::stoi(vertex3.substr(0, vertex3.find('/')));
+
+			// OBJ files are 1-indexed
+			resultMesh.vertexList.emplace_back(vertices[idx1 - 1], vertices[idx2 - 1], vertices[idx3 - 1]);
+		}
+
+	}
+
+	return resultMesh;
 }

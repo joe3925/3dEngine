@@ -10,12 +10,13 @@ float aspectRatio = 16.0f / 9.0f;
 float nearPlane = 0.1f; // Near clipping plane
 float farPlane = 100.0f; // Far clipping plane
 camera cam(cameraX, cameraY, cameraZ, cameraName, fov, aspectRatio, nearPlane, farPlane);
-mesh cube;
+mesh cube = loadOBJ("C:\\Users\\Boden\\Downloads\\uploads_files_2792345_Koenigsegg.obj");
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
     case WM_CREATE:
         rotate(cube, 180.0f, 90.0f, 0.0f);
+        transform(cube, 0, 0, 200);
 
         if (SetTimer(hwnd, IDT_TIMER1, 0, NULL) != 0) {
             break;

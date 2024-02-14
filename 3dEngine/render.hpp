@@ -11,6 +11,16 @@
 #include <chrono>
 #include <sstream>
 #include <fstream>
+#include <array>
+
+
+#include <functional>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+#include <atomic>
+#include <type_traits>
 
 
 struct point {
@@ -77,45 +87,146 @@ public:
 };
 
 
+class ThreadPool {
+public:
+	size_t numThreads;
+	ThreadPool(size_t threads) : stop(false) {
+		numThreads = threads;
+		for (size_t i = 0; i < threads; ++i) {
+			workers.emplace_back([this] {
+				while (true) {
+					std::function<void()> task;
+					{
+						std::unique_lock<std::mutex> lock(this->queueMutex);
+						this->condition.wait(lock, [this] { return this->stop || !this->tasks.empty(); });
+						if (this->stop && this->tasks.empty())
+							return;
+						task = std::move(this->tasks.front());
+						this->tasks.pop();
+					}
+					task();
+				}
+				});
+		}
+	}
+	size_t size() {
+		return numThreads;
+	}
+	template<class F, class... Args>
+	auto enqueue(F&& f, Args&&... args)
+		-> std::future<std::invoke_result_t<F, Args...>> {
+		using return_type = std::invoke_result_t<F, Args...>;
+
+		auto task = std::make_shared<std::packaged_task<return_type()>>(
+			std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+		);
+
+		std::future<return_type> res = task->get_future();
+		{
+			std::unique_lock<std::mutex> lock(queueMutex);
+
+			if (stop)
+				throw std::runtime_error("enqueue on stopped ThreadPool");
+
+			tasks.emplace([task]() { (*task)(); });
+		}
+		condition.notify_one();
+		return res;
+	}
+
+	~ThreadPool() {
+		{
+			std::unique_lock<std::mutex> lock(queueMutex);
+			stop = true;
+		}
+		condition.notify_all();
+		for (std::thread& worker : workers)
+			worker.join();
+	}
+
+private:
+	std::vector<std::thread> workers;
+	std::queue<std::function<void()>> tasks;
+	std::mutex queueMutex;
+	std::condition_variable condition;
+	std::atomic<bool> stop;
+};
+
+// Global or static thread pool initialization
+static ThreadPool pool(std::thread::hardware_concurrency());
 
 
 
-
-void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height, const camera& cam);
+void DrawTriangle(HDC hdc, const std::array<POINT, 3>& pArray, COLORREF color);
+void triangleWrapper(const triangle& Triangle, double width, double height, const camera& cam, std::vector<POINT[3]>& fixed);
 void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, const camera& cam);
 POINT ConvertFromPoint2D(point2D& pt2D);
 void fixPoint(point2D &p, int width, int height);
 point2D Project3Dto2D(const point& pt3D, const camera& cam);
 gmtl::Vec4f translateRotateTranslate(const gmtl::Vec4f& position, const gmtl::Vec4f& center, const gmtl::Matrix44f& rotationMatrix);
 
-
-void DrawTriangle(HDC hdc, triangle Triangle, COLORREF color, double width, double height, const camera& cam) {
-
-
+//multiple threads can't modify an HDC so this has to be used to off load the math
+void triangleWrapper(const triangle& Triangle, double width, double height, const camera& cam, std::vector<std::array<POINT, 3>>& fixed) {
 	point2D p1 = Project3Dto2D(Triangle.p1, cam);
 	point2D p2 = Project3Dto2D(Triangle.p2, cam);
 	point2D p3 = Project3Dto2D(Triangle.p3, cam);
-	HPEN hPen = CreatePen(PS_SOLID, 1, color);
-	HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
-	
-	//fix the points (-1 - 1 to 0 - width, 0 - height)
-	fixPoint(p1, width,height);
+
+	// Fix the points (-1 - 1 to 0 - width, 0 - height)
+	fixPoint(p1, width, height);
 	fixPoint(p2, width, height);
 	fixPoint(p3, width, height);
-	POINT trianglePoints[4] = { ConvertFromPoint2D(p1), ConvertFromPoint2D(p2), ConvertFromPoint2D(p3), ConvertFromPoint2D(p1) };
 
+	std::array<POINT, 3> points = { ConvertFromPoint2D(p1),ConvertFromPoint2D(p2),ConvertFromPoint2D(p3) };
+
+	fixed.push_back(points);
+}
+
+void DrawTriangle(HDC hdc, const std::array<POINT, 3>& pArray, COLORREF color) {
+	HPEN hPen = CreatePen(PS_SOLID, 1, color);
+	HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
 	// Draw the triangle
-	Polyline(hdc, trianglePoints, 4); 
+	Polyline(hdc, pArray.data(), 3);
 
 	SelectObject(hdc, hOldPen);
 	DeleteObject(hPen);
 }
-void DrawMesh(HDC hdc, mesh &Mesh, COLORREF color, double width, double height, const camera& cam) {
-	for (int i = 0; i < Mesh.vertexList.size(); i++) {
-		DrawTriangle(hdc, Mesh.vertexList[i], color, width, height, cam);
+
+void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, const camera& cam) {
+	const size_t totalTriangles = Mesh.vertexList.size();
+	const size_t numThreads = pool.size(); 
+
+	std::vector<std::future<std::vector<std::array<POINT, 3>>>> futures;
+	std::vector<std::array<POINT, 3>> combinedFixedPoints;
+
+	// Calculate workload per task
+	const size_t workloadPerTask = (totalTriangles + numThreads - 1) / numThreads;
+
+	for (size_t i = 0; i < numThreads && i * workloadPerTask < totalTriangles; ++i) {
+		size_t start = i * workloadPerTask;
+		size_t end = (((start + workloadPerTask) < (totalTriangles)) ? (start + workloadPerTask) : (totalTriangles));
+
+		// Enqueue each task
+		futures.push_back(pool.enqueue([start, end, &Mesh, width, height, &cam]() {
+			std::vector<std::array<POINT, 3>> localFixedPoints;
+			for (size_t j = start; j < end; ++j) {
+				triangleWrapper(Mesh.vertexList[j], width, height, cam, localFixedPoints);
+			}
+			return localFixedPoints;
+			}));
 	}
-	
+
+	// Wait for all tasks to complete and collect results
+	for (auto& future : futures) {
+		auto fixedPoints = future.get(); 
+		combinedFixedPoints.insert(combinedFixedPoints.end(), fixedPoints.begin(), fixedPoints.end());
+	}
+
+	//TODO: Optimize this
+	for (auto& fixedPoint : combinedFixedPoints) {
+		DrawTriangle(hdc, fixedPoint, color);
+	}
 }
+
 mesh CreateCube(float center_x, float center_y, float center_z, float edge_length) {
 	float half_edge = edge_length / 2.0f;
 	std::vector<point> vertices = {
@@ -285,7 +396,6 @@ mesh loadOBJ(const std::string& filename) {
 		std::istringstream iss(line);
 		std::string prefix;
 		iss >> prefix;
-
 		if (prefix == "v") {
 			// Vertex position
 			float x, y, z;

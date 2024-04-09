@@ -21,6 +21,8 @@
 #include <atomic>
 #include <type_traits>
 #include <algorithm> 
+#include <thread>
+
 
 
 #include "THpool.cuh"
@@ -29,33 +31,29 @@
 #include "cudaIncludes.cuh"
 
 
-static ThreadPool pool(20);
 
-void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, camera& cam);
+void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, camera& cam, ThreadPool* pool);
 mesh loadOBJ(const std::string& filename);
 void rotate(mesh& Mesh, float x, float y, float z);
 void transform(mesh& Mesh, float x, float y, float z);
 gmtl::Vec4f Center(mesh& Mesh);
 void moveCam(camera& cam, float moveSpeed);
 POINT ConvertFromPoint2D(point2D& pt2D);
-void triangleWrapper(std::vector<triangle>& triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread);
+void triangleWrapper(mesh& Mesh, std::vector<triangle>& triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread);
 void DrawTriangle(HDC hdc, const std::array<POINT, 3>& pArray, COLORREF color);
 void fixPoint(point2D& p, int width, int height);
 gmtl::Vec4f translateRotateTranslate(const gmtl::Vec4f& position, const gmtl::Vec4f& center, const gmtl::Matrix44f& rotationMatrix);
-float* d_matrix;
-float* d_vector;
-float* d_result;
-int batchSize = 3;
-cudaData mData;
+void rotateCam(camera& cam, float rotateSpeed);
 
+ThreadPool* createThreadPool(size_t size);
 
-void triangleWrapper(std::vector<triangle>& triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread) {
+void triangleWrapper(mesh &Mesh, std::vector<triangle>& triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread) {
 	// Calculate the total number of vertices
 	int totalVertices = triangles.size() * 3;
 	std::vector<point2D> arg3D({{0,0},{0,0},{0,0},{0,0},{0,0},{0,0} ,{0,0},{0,0},{0,0} }); // Adjusted for multiple triangles
 
 	// Process the triangles' vertices through CUDA
-	projectTriangles3Dto2DWithCuda(triangles, cam.projectionMatrix.mData, arg3D, mData.M_data[currentThread], mData.V_data[currentThread], mData.R_data[currentThread]);
+	projectTriangles3Dto2DWithCuda(triangles, cam.projectionMatrix.mData, arg3D, Mesh.mData.M_data[currentThread], Mesh.mData.V_data[currentThread], Mesh.mData.R_data[currentThread]);
 
 	// Iterate over all triangles
 	for (size_t t = 0; t < triangles.size(); ++t) {
@@ -70,8 +68,12 @@ void triangleWrapper(std::vector<triangle>& triangles, float width, float height
 	}
 }
 
-void setBatchSize(size_t size) {
-	batchSize = size;
+void setBatchSize(size_t size, mesh &Mesh) {
+	Mesh.batchSize = size;
+}
+
+ThreadPool* createThreadPool(size_t size) {
+	return new ThreadPool(size);
 }
 
 void DrawTriangle(HDC hdc, const std::array<POINT, 3>& pArray, COLORREF color) {
@@ -195,39 +197,67 @@ void fixPoint(point2D& p, int width, int height) {
 	p.y = (1.0f - p.y) * 0.5f * height;
 }
 void moveCam(camera& cam, float moveSpeed) {
+	float xTransform = 0;
+	float yTransform = 0;
+	float zTransform = 0;
+
 	if (GetAsyncKeyState('W') & 0x8000) {
-		cam.Position[2] += moveSpeed;
+		zTransform += moveSpeed;
 	}
 
 	if (GetAsyncKeyState('A') & 0x8000) {
-		cam.Position[0] += moveSpeed;
+		xTransform += moveSpeed;
 	}
 
 	if (GetAsyncKeyState('S') & 0x8000) {
-		cam.Position[2] -= moveSpeed;
+		zTransform -= moveSpeed;
 	}
 
 	if (GetAsyncKeyState('D') & 0x8000) {
-		cam.Position[0] -= moveSpeed;
+		xTransform -= moveSpeed;
 	}
 
 	if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-		cam.Position[1] -= moveSpeed;
+		yTransform -= moveSpeed;
 	}
 	if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
-		cam.Position[1] += moveSpeed;
+		yTransform += moveSpeed;
 	}
+	cam.calculateViewMatrix(xTransform, yTransform, zTransform);
+}
+void rotateCam(camera& cam, float rotateSpeed) {
+	float pitch = 0; // Rotation around the X-axis
+	float yaw = 0;   // Rotation around the Y-axis
+
+	// Check arrow keys and adjust rotation angles
+	if (GetAsyncKeyState(VK_UP) & 0x8000) {
+		pitch -= rotateSpeed;
+	}
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+		pitch += rotateSpeed;
+	}
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+		yaw -= rotateSpeed;
+	}
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+		yaw += rotateSpeed;
+	}
+
+	// Apply the rotation to the camera
+	// Assuming you have a function like rotateViewMatrix(cam.viewMatrix, pitch, yaw, 0) implemented
+	cam.rotateViewMatrix( pitch, yaw, 0);
 }
 
 void initDraw(mesh &Mesh) {
-	int fullSets = Mesh.vertexList.size() / batchSize;
+	
+	int fullSets = Mesh.vertexList.size() / Mesh.batchSize;
 	for (int i = 0; i < fullSets; i++) {
-		cudaMallocHost((void**)&d_matrix, sizeof(float) * 16);
-		cudaMallocHost((void**)&d_vector, sizeof(float) * batchSize * 12);
-		cudaMallocHost((void**)&d_result, sizeof(float) * batchSize * 12);
-		mData.M_data.push_back(d_matrix);
-		mData.V_data.push_back(d_vector);
-		mData.R_data.push_back(d_result);
+		cudaMallocHost((void**)&Mesh.d_matrix, sizeof(float) * 16);
+		cudaMallocHost((void**)&Mesh.d_vector, sizeof(float) * Mesh.batchSize * 12);
+		cudaMallocHost((void**)&Mesh.d_result, sizeof(float) * Mesh.batchSize * 12);
+		Mesh.mData.M_data.push_back(Mesh.d_matrix);
+		Mesh.mData.V_data.push_back(Mesh.d_vector);
+		Mesh.mData.R_data.push_back(Mesh.d_result);
 	}
 }
 
@@ -257,20 +287,30 @@ void initDraw(mesh &Mesh) {
 		}
 	}
 }*/
-void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, camera& cam) {
+void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, camera& cam, ThreadPool* pool) {
 	std::vector<std::future<std::vector<std::array<POINT, 3>>>> futures;
 	std::vector<std::vector<std::array<POINT, 3>>> allFixedPoints;
-	int batchSizeL = batchSize;
-	int fullSets = Mesh.vertexList.size() / batchSize;
-
 	std::mutex allFixedPointsMutex;
+	int batchSizeL;
+	int fullSets;
+	if (Mesh.batchSize > Mesh.vertexList.size()) {
+		batchSizeL = Mesh.vertexList.size();
+		fullSets = Mesh.vertexList.size() / Mesh.batchSize;
+	}
+	else {
+		batchSizeL = Mesh.batchSize;
+		fullSets = Mesh.vertexList.size() / Mesh.batchSize;
+	}
+	if (pool == nullptr) {
+		pool = createThreadPool(1);
+	}
 
 	for (int i = 0; i < fullSets; ++i) {
-		futures.push_back(pool.enqueue([&Mesh, i, batchSizeL, width, height, &cam]() {
+		futures.push_back(pool->enqueue([&Mesh, i, batchSizeL, width, height, &cam]() {
 			
 			std::vector<triangle> triangleBatch(Mesh.vertexList.begin() + i * batchSizeL, Mesh.vertexList.begin() + (i * batchSizeL) + batchSizeL);
 			std::vector<std::array<POINT, 3>> localFixedPoints;
-			triangleWrapper(triangleBatch, width, height, cam, localFixedPoints, i);
+			triangleWrapper(Mesh,triangleBatch, width, height, cam, localFixedPoints, i);
 			return localFixedPoints; // Return the localFixedPoints directly
 			}));
 	}
@@ -283,11 +323,11 @@ void DrawMesh(HDC hdc, mesh& Mesh, COLORREF color, double width, double height, 
 	}
 
 	// Process any remaining triangles
-	int remainder = Mesh.vertexList.size() % batchSize;
+	int remainder = Mesh.vertexList.size() % batchSizeL;
 	if (remainder != 0) {
 		std::vector<triangle> triangleBatch(Mesh.vertexList.end() - remainder, Mesh.vertexList.end());
 		std::vector<std::array<POINT, 3>> localFixedPoints;
-		triangleWrapper(triangleBatch, width, height, cam, localFixedPoints,0);
+		triangleWrapper(Mesh,triangleBatch, width, height, cam, localFixedPoints,0);
 		allFixedPoints.push_back(std::move(localFixedPoints));
 	}
 

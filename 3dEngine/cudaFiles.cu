@@ -40,7 +40,7 @@ extern "C" void projectTriangles3Dto2DWithCuda(const std::vector<triangle>&trian
     cudaMemcpy(d_matrix, matrix, 16 * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_vectors, vertices.data(), vertices.size() * sizeof(float), cudaMemcpyHostToDevice);
 
-    matrixVectorMultiplyKernel << <numVertices / 2, 4 >> > (d_matrix, d_vectors, d_results, numVertices);
+    matrixVectorMultiplyKernel << <numVertices / 3, 4 >> > (d_matrix, d_vectors, d_results, numVertices);
 
     cudaMemcpy(results.data(), d_results, results.size() * sizeof(float), cudaMemcpyDeviceToHost);
 

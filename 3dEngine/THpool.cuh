@@ -8,6 +8,9 @@
 class ThreadPool {
 public:
 	size_t numThreads;
+	ThreadPool() {
+
+	}
 	ThreadPool(size_t threads) : stop(false) {
 		numThreads = threads;
 		for (size_t i = 0; i < threads; ++i) {

@@ -5,25 +5,34 @@ float cameraX = 0.0f;;
 float cameraY = 0.0f; 
 float cameraZ = 0.0f; 
 std::string cameraName = "MainCamera"; 
-float fov = 90.0f; //
+float fov = 60.0f; //
 float aspectRatio = 16.0f / 9.0f; 
 float nearPlane = 0.1f; // Near clipping plane
 float farPlane = 100.0f; // Far clipping plane
 camera cam(cameraX, cameraY, cameraZ, cameraName, fov, aspectRatio, nearPlane, farPlane);
-mesh cube = loadOBJ("C:\\Users\\boden\\Downloads\\uploads_files_2454915_Dolphin.obj");
+mesh cube = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+mesh cube1 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+
 double fpsAverage = 0;
 int count;
-//mesh cube = loadOBJ("C:\\Users\\boden\\Downloads\\1\\2.obj");
-//mesh cube = CreateCube(0, 0, 0, 0.5);
+ThreadPool* pool = nullptr;
+ThreadPool* pool1 = nullptr;
+
+//mesh cube = CreateCube(0, 0, 0, 4.0);
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
     case WM_CREATE:
-        setBatchSize(50);
+        pool = createThreadPool(10);
+        pool1 = createThreadPool(10);
+
+        setBatchSize(50,cube);
+        setBatchSize(50, cube1);
         rotate(cube, 180.0f, 90.0f, 0.0f);
-        transform(cube, 0, 0, 6);
+        rotate(cube1, 180.0f, 90.0f, 0.0f);
         initDraw(cube);
+        initDraw(cube1);
 
         if (SetTimer(hwnd, IDT_TIMER1, 0, NULL) != 0) {
             break;
@@ -69,6 +78,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         Mesh.vertexList.push_back(test);*/
         cam.aspectRatio = width / height;
         moveCam(cam, 0.1f);
+        rotateCam(cam, 10);
         transform(cube, 0.0f, 0.0f, 0.0f);
  
         HDC hdesktop = GetDC(0);
@@ -81,8 +91,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         // Fill the bitmap with red color
         
         COLORREF redColor = RGB(255, 0, 0);
-        DrawMesh(memdc, cube, redColor, width, height, cam);
-        rotate(cube, 0.01, 0, 0);
+        DrawMesh(memdc, cube, redColor, width, height, cam,pool);
+        DrawMesh(memdc, cube1, redColor, width, height, cam, pool1);
+
+        rotate(cube, 0, 10, 0);
 
         //fps calculation
         auto stop = std::chrono::high_resolution_clock::now();

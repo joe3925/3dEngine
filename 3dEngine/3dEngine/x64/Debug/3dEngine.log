@@ -1,0 +1,59 @@
+﻿  Compiling CUDA source file CudaFile.cu...
+  Compiling CUDA source file cudaIncludes.cpp...
+  
+  C:\Users\Boden\source\repos\3dEngine\3dEngine>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\bin\HostX64\x64" -x cu   -IC:\Users\boden\source\repos\3dEngine\3dEngine -IC:\Users\Boden\Documents\3dEngine\3dEngine -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\include"  -G   --keep-dir 3dEngine\x64\Debug  -maxrregcount=0   --machine 64 --compile -cudart static -std=c++14 -g  -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /Od /FS /Zi /RTC1 /MDd " -Xcompiler "/Fd3dEngine\x64\Debug\vc143.pdb" -o C:\Users\Boden\source\repos\3dEngine\3dEngine\3dEngine\x64\Debug\CudaFile.cu.obj "C:\Users\Boden\source\repos\3dEngine\3dEngine\CudaFile.cu" 
+  
+  C:\Users\Boden\source\repos\3dEngine\3dEngine>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.39.33519\bin\HostX64\x64" -x cu   -IC:\Users\boden\source\repos\3dEngine\3dEngine -IC:\Users\Boden\Documents\3dEngine\3dEngine -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\include"  -G   --keep-dir 3dEngine\x64\Debug  -maxrregcount=0   --machine 64 --compile -cudart static -std=c++14 -g  -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -Xcompiler "/EHsc /W3 /nologo /Od /FS /Zi /RTC1 /MDd " -Xcompiler "/Fd3dEngine\x64\Debug\vc143.pdb" -o C:\Users\Boden\source\repos\3dEngine\3dEngine\3dEngine\x64\Debug\cudaIncludes.cpp.obj "C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp" 
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(211): warning #512-D: type qualifier on a reference type is not allowed
+    	void mesh::triangleWrapper( std::vector<triangle>& const triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread) {
+    	                                                   ^
+  
+  Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+  
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(211): warning #512-D: type qualifier on a reference type is not allowed
+    	void mesh::triangleWrapper( std::vector<triangle>& const triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread) {
+    	                                                   ^
+  
+  Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+  
+  CudaFile.cu
+  cudaIncludes.cpp
+  tmpxft_00003184_00000000-7_CudaFile.cudafe1.cpp
+C:\Users\Boden\source\repos\3dEngine\3dEngine\CudaFile.cu(18): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  tmpxft_0000246c_00000000-7_cudaIncludes.cudafe1.cpp
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(63): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(64): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(65): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(153): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(200): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(213): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(224): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(224): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\cudaIncludes.cpp(248): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  main.cpp
+C:\Users\boden\source\repos\3dEngine\3dEngine\THpool.h(78,20): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'main.cpp')
+  
+C:\Users\Boden\source\repos\3dEngine\3dEngine\main.cpp(72,32): warning C4244: '=': conversion from 'LONG' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\main.cpp(73,34): warning C4244: '=': conversion from 'LONG' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\main.cpp(92,67): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\main.cpp(92,60): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\main.cpp(137,34): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\main.cpp(137,27): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+  ThreadDefines.cpp
+C:\Users\Boden\source\repos\3dEngine\3dEngine\THpool.h(78,20): warning C4267: 'return': conversion from 'size_t' to 'int', possible loss of data
+  (compiling source file 'ThreadDefines.cpp')
+  
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(15,38): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(15,31): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(22,31): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(23,32): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(27,32): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(35,42): warning C4244: 'argument': conversion from 'const double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(35,35): warning C4244: 'argument': conversion from 'const double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(52,41): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(52,34): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+C:\Users\Boden\source\repos\3dEngine\3dEngine\ThreadDefines.cpp(105,21): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  Generating Code...
+C:\Users\Boden\source\repos\3dEngine\3dEngine\main.cpp(151,1): warning C4715: 'WindowProc': not all control paths return a value
+  3dEngine.vcxproj -> C:\Users\Boden\source\repos\3dEngine\3dEngine\x64\Debug\3dEngine.exe

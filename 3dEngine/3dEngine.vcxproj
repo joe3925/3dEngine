@@ -112,11 +112,16 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>"C:\Users\boden\source\repos\3dEngine\3dEngine";"C:\Users\Boden\Documents\3dEngine\3dEngine";$(CUDA_PATH)\include;</AdditionalIncludeDirectories>
+      <LanguageStandard_C>Default</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <CudaCompile />
+    <CudaCompile>
+      <AdditionalOptions>-std=c++14 %(AdditionalOptions)</AdditionalOptions>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -135,7 +140,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cu" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="ThreadDefines.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
@@ -143,15 +149,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cudaFile.cuh" />
-    <ClInclude Include="cudaIncludes.cuh" />
-    <ClInclude Include="THpool.cuh" />
-    <ClInclude Include="render.cuh" />
+    <ClInclude Include="cudaIncludes.h" />
+    <ClInclude Include="THpool.h" />
+    <ClInclude Include="render.h" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="cudaFiles.cu">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-    </CudaCompile>
+    <CudaCompile Include="CudaFile.cu" />
+    <CudaCompile Include="cudaIncludes.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

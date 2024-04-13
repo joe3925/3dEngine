@@ -60,9 +60,6 @@ std::vector<std::vector<std::array<POINT, 3>>> mesh::DrawMesh(HDC hdc, COLORREF 
 void mesh::setPool(ThreadPool* pool) {
 	Meshpool = pool;
 }
-void mesh::freePool() {
-	Meshpool = nullptr;
-}
 
 
 void world::renderWorld(HDC hdc, COLORREF color, double width, double height) {
@@ -71,14 +68,17 @@ void world::renderWorld(HDC hdc, COLORREF color, double width, double height) {
 
 	if (pool == nullptr) {
 		for (int i = 0; i < worldObjects.size(); i++) {
-			worldObjects.at(meshes[i]).DrawMesh(hdc, color, width, height, worldCam);
+			allMeshes.push_back(worldObjects.at(meshes[i]).DrawMesh(hdc, color, width, height, *worldCam));
+		}
+		for (auto& _2dMesh : allMeshes) {
+			DrawTriangle(hdc, _2dMesh, color);
 		}
 		return;
 	}		
 	for (int i = 0; i < totalMeshes; i++) {
 		futures.push_back(pool->enqueue([this, i, hdc, color, width, height]()
 				{
-					return worldObjects.at(meshes[i]).DrawMesh(hdc, color, width, height, worldCam);
+					return worldObjects.at(meshes[i]).DrawMesh(hdc, color, width, height, *worldCam);
 
 				}));
 	}
@@ -102,7 +102,12 @@ void world::setThreadPool(ThreadPool* givenPool) {
 }
 
 void world::initMesh(mesh &Mesh) {
-	Mesh.threads = pool->numThreads;
+	if (pool == nullptr) {
+		Mesh.threads = 1;
+	}
+	else {
+		Mesh.threads = pool->numThreads;
+	}
 	Mesh.setBatchSize(Mesh.vertexList.size() / Mesh.threads);
 	Mesh.initDraw();
 }

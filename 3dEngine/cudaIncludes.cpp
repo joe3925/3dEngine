@@ -40,61 +40,48 @@ void point2D::fixPoint(int width, int height) {
 
 
 
-	void camera::calculateViewMatrix(float x, float y, float z) {
+void camera::calculateViewMatrix(float x, float y, float z) {
 
-		setIdentityMatrix(view);
+	gmtl::Matrix44f translation;
+	gmtl::setTrans(translation, gmtl::Vec3f(-x, -y, -z));
+	viewMatrix = translation * viewMatrix;
+}
 
-		// Translate camera to its position (inversely because moving the world opposite to the camera's movement)
-		gmtl::Matrix44f translation;
-		gmtl::setTrans(translation, gmtl::Vec3f(-x, -y, -z));
-
-		view = translation * view; // Apply translation
-
-		viewMatrix = view;
-		projectionMatrix = projectionMatrix * viewMatrix;
-		this->Position[0] += x;
-		this->Position[1] += y;
-		this->Position[2] += z;
-
-
-	}
 	void camera::rotateViewMatrix(float pitch, float yaw, float roll) {
+		// Increment the accumulated rotations
+
 		// Convert angles from degrees to radians for trigonometric functions
 		float pitchRad = pitch * (M_PI / 180.0f);
 		float yawRad = yaw * (M_PI / 180.0f);
 		float rollRad = roll * (M_PI / 180.0f);
 
-		// Create rotation matrices around the x, y, and z axes
+		// Recreate the identity view matrix (or store and reset to an initial camera position if needed)
+
+		// Apply transformations similar to before but using accumulated angles
 		gmtl::Matrix44f rotX, rotY, rotZ;
 		setIdentityMatrix(rotX);
 		setIdentityMatrix(rotY);
 		setIdentityMatrix(rotZ);
 
-		// Rotation matrix for pitch (X-axis)
+		// Rotation matrices using accumulated angles
 		rotX(1, 1) = cos(pitchRad);
 		rotX(1, 2) = -sin(pitchRad);
 		rotX(2, 1) = sin(pitchRad);
 		rotX(2, 2) = cos(pitchRad);
 
-		// Rotation matrix for yaw (Y-axis)
 		rotY(0, 0) = cos(yawRad);
 		rotY(0, 2) = sin(yawRad);
 		rotY(2, 0) = -sin(yawRad);
 		rotY(2, 2) = cos(yawRad);
 
-		// Rotation matrix for roll (Z-axis)
 		rotZ(0, 0) = cos(rollRad);
 		rotZ(0, 1) = -sin(rollRad);
 		rotZ(1, 0) = sin(rollRad);
 		rotZ(1, 1) = cos(rollRad);
 
-		// Combine rotations: first roll, then pitch, then yaw
-		// The order of multiplication is important and depends on how you define the axes and rotation order
+		// Combine and apply rotations to view matrix
 		gmtl::Matrix44f rotation = rotY * rotX * rotZ;
-
-		// Apply rotation to the view matrix
-		viewMatrix = rotation * viewMatrix;
-		projectionMatrix = projectionMatrix * viewMatrix;
+		viewMatrix = rotation * viewMatrix; // Combine with the existing view matrix
 	}
 	void camera::moveCam(float moveSpeed) {
 		float xTransform = 0;
@@ -131,20 +118,19 @@ void point2D::fixPoint(int width, int height) {
 
 		// Check arrow keys and adjust rotation angles
 		if (GetAsyncKeyState(VK_UP) & 0x8000) {
-			pitch -= rotateSpeed;
-		}
-		if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
 			pitch += rotateSpeed;
 		}
+		if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+			pitch -= rotateSpeed;
+		}
 		if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
-			yaw -= rotateSpeed;
+			yaw += rotateSpeed;
 		}
 		if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-			yaw += rotateSpeed;
+			yaw -= rotateSpeed;
 		}
 
 		// Apply the rotation to the camera
-		// Assuming you have a function like rotateViewMatrix(cam.viewMatrix, pitch, yaw, 0) implemented
 		rotateViewMatrix(pitch, yaw, 0);
 	}
 
@@ -192,29 +178,26 @@ void point2D::fixPoint(int width, int height) {
 		return translatedPosition;
 	}
 	void mesh::initDraw() {
-		int fullSets = 0;
-		if (threads == 0) {
-			fullSets = 1;
-		}
-		else {
-			fullSets = vertexList.size() / threads;
-		}
-		for (int i = 0; i < fullSets; i++) {
-			cudaMallocHost((void**)&d_matrix, sizeof(float) * 16);
+		for (int i = 0; i < threads; i++) {
+			cudaMallocHost((void**)&d_ProjMatrix, sizeof(float) * 16);
+			cudaMallocHost((void**)&d_ViewMatrix, sizeof(float) * 16);
 			cudaMallocHost((void**)&d_vector, sizeof(float) * batchSize * 12);
 			cudaMallocHost((void**)&d_result, sizeof(float) * batchSize * 12);
-			mData.M_data.push_back(d_matrix);
+			cudaMallocHost((void**)&d_ViewResult, sizeof(float) * batchSize * 12);
+			mData.VM_data.push_back(d_ViewMatrix);
+			mData.PM_data.push_back(d_ProjMatrix);
 			mData.V_data.push_back(d_vector);
+			mData.VR_data.push_back(d_ViewResult);
 			mData.R_data.push_back(d_result);
 		}
 	}
 	void mesh::triangleWrapper( std::vector<triangle>& const triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread) {
 		// Calculate the total number of vertices
 		int totalVertices = triangles.size() * 3;
-		std::vector<point2D> arg3D({ {0,0},{0,0},{0,0},{0,0},{0,0},{0,0} ,{0,0},{0,0},{0,0} }); 
+		std::vector<point2D> arg3D;
 
 		// Process the triangles' vertices through CUDA
-		projectTriangles3Dto2DWithCuda(triangles, cam.projectionMatrix.mData, arg3D, mData.M_data[currentThread], mData.V_data[currentThread], mData.R_data[currentThread]);
+		projectTriangles3Dto2DWithCuda(triangles, cam.viewMatrix.mData, cam.projectionMatrix.mData, arg3D, mData.VR_data[currentThread], mData.VM_data[currentThread], mData.PM_data[currentThread], mData.V_data[currentThread], mData.R_data[currentThread]);
 
 		// Iterate over all triangles
 		for (size_t t = 0; t < triangles.size(); ++t) {
@@ -292,12 +275,29 @@ void point2D::fixPoint(int width, int height) {
 		}
 	}
 
-	void world::addMesh(mesh &Mesh) {
+	mesh& world::addMesh(mesh &Mesh) {
 		worldObjects[Mesh.Name] = Mesh;
 		meshes.push_back(Mesh.Name);
 		worldObjects[Mesh.Name].setPool(pool);
 		initMesh(worldObjects[Mesh.Name]);
 		totalMeshes++;
+		return worldObjects[Mesh.Name];
+	}
+	mesh& world::addMeshNotRendered(mesh& Mesh) {
+		unRenderdObjects[Mesh.Name] = Mesh;
+		meshes.push_back(Mesh.Name);
+		unRenderdObjects[Mesh.Name].setPool(pool);
+		initMesh(unRenderdObjects[Mesh.Name]);
+		totalMeshes++;
+		return unRenderdObjects[Mesh.Name];
+	}
+	mesh& world::returnMesh(std::string name) {
+		return worldObjects.at(name);
+	}
+	mesh& world::deRenderObject(std::string name) {
+		unRenderdObjects[name] = worldObjects.at(name);
+		removeMesh(worldObjects.at(name));
+		return unRenderdObjects.at(name);
 	}
 	void world::removeMesh(mesh& Mesh) {
 		std::string name = Mesh.Name;
@@ -312,9 +312,6 @@ void point2D::fixPoint(int width, int height) {
 		worldObjects.erase(name);
 		totalMeshes--;
 	}
-
 	void world::setCam(camera& cam) {
-		worldCam = cam;
+		worldCam = &cam;
 	}
-
-

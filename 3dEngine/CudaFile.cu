@@ -1,19 +1,40 @@
 #include <cudafile.cuh>
 #include <cudaIncludes.h>
 
-__global__ void matrixVectorMultiplyKernel(float* matrix, float* vectors, float* results, int numVectors) {
-	int index = threadIdx.x;
-	float sum = 0.0f;
+__global__ void matrixVectorMultiplyKernel(float* ProjMatrix, float* ViewMatrix, float* d_ViewResults, float* vectors, float* results, int numVectors) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (idx < numVectors) {
+        // Temporary arrays to hold intermediate and final results for a single vector
+        float tempResult[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float finalResult[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-	for (int vec = 0; vec < numVectors; ++vec) {
-		sum = 0.0f;
-		for (int i = 0; i < 4; ++i) {
-			sum += matrix[index * 4 + i] * vectors[vec * 4 + i];
-		}
-		results[vec * 4 + index] = sum;
-	}
+        // Multiply the vector by the view matrix and store the result in d_ViewResults
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                tempResult[i] += ViewMatrix[i * 4 + j] * vectors[idx * 4 + j];
+            }
+        }
+
+        for (int i = 0; i < 4; i++) {
+            d_ViewResults[idx * 4 + i] = tempResult[i];
+        }
+
+        // Multiply the temporary result by the projection matrix and store in results
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                finalResult[i] += ProjMatrix[i * 4 + j] * tempResult[j];
+            }
+        }
+
+        for (int i = 0; i < 4; i++) {
+            results[idx * 4 + i] = finalResult[i];
+        }
+    }
 }
-void projectTriangles3Dto2DWithCuda(const std::vector<triangle>& triangles, const float(&matrix)[16], std::vector<point2D>& outPts2D, float* d_matrix, float* d_vectors, float* d_results) {
+
+
+cudaError_t projectTriangles3Dto2DWithCuda(const std::vector<triangle>& triangles, const float(&ViewMatrix)[16], const float(&ProjMatrix)[16], std::vector<point2D>& outPts2D, float* d_ViewResults, float* v_matrix, float* p_matrix, float* d_vectors, float* d_results) {
 	// Each triangle has 3 vertices, and each vertex has 4 components (x, y, z, w)
 	int numTriangles = triangles.size();
 	int numVertices = numTriangles * 3;
@@ -31,19 +52,36 @@ void projectTriangles3Dto2DWithCuda(const std::vector<triangle>& triangles, cons
 	}
 
 	// Copy data to the GPU
-	cudaError_t error = cudaMemcpy(d_matrix, matrix, 16 * sizeof(float), cudaMemcpyHostToDevice);
-	error = cudaMemcpy(d_vectors, vertices.data(), vertices.size() * sizeof(float), cudaMemcpyHostToDevice);
+	cudaError_t status = cudaMemcpy(p_matrix, ProjMatrix, 16 * sizeof(float), cudaMemcpyHostToDevice);
+	if (status != cudaSuccess) {
+		return status;
+	}
+	status = cudaMemcpy(d_vectors, vertices.data(), vertices.size() * sizeof(float), cudaMemcpyHostToDevice);
+	if (status != cudaSuccess) {
+		return status;
+	}
+	status = cudaMemcpy(v_matrix, ViewMatrix, 16 * sizeof(float), cudaMemcpyHostToDevice);
+	if (status != cudaSuccess) {
+		return status;
+	}
 
-	matrixVectorMultiplyKernel << <numVertices / 3, 4 >> > (d_matrix, d_vectors, d_results, numVertices);
-
-	cudaMemcpy(results.data(), d_results, results.size() * sizeof(float), cudaMemcpyDeviceToHost);
+	matrixVectorMultiplyKernel << <numVertices / 3, 20 >> > (p_matrix,v_matrix, d_ViewResults, d_vectors, d_results, numVertices);
+	
+	status = cudaMemcpy(results.data(), d_results, results.size() * sizeof(float), cudaMemcpyDeviceToHost);
+	if (status != cudaSuccess) {
+		return status;
+	}
 
 	outPts2D.clear();
 	for (int i = 0; i < numVertices; ++i) {
-		if (results[i * 4 + 3] != 0.0f) { // Perspective divide
+		if (results[i * 4 + 3] != 27.0f) { // Perspective divide
 			float x = results[i * 4 + 0] / results[i * 4 + 3];
 			float y = results[i * 4 + 1] / results[i * 4 + 3];
 			outPts2D.push_back(point2D(x, y));
 		}
+		else {
+			return status;
+		}
 	}
+	return status;
 }

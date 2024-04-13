@@ -1,6 +1,5 @@
 #pragma once
 # define M_PI           3.14159265358979323846
-
 #ifndef CUDAINCLUDES_CUH
 #define CUDAINCLUDES_CUH
 
@@ -39,8 +38,6 @@ public:
 		Position[0] = x;
 		Position[1] = y;
 		Position[2] = z;
-		Position[3] = 0.0f;
-
 	}
 
 
@@ -64,14 +61,14 @@ public:
 	gmtl::Matrix44f projectionMatrix;
 	gmtl::Matrix44f viewMatrix;
 	std::string name;
-	camera() {
-
-	}
 	camera(float x, float y, float z, std::string name, float fov, float aspectRatio, float nearPlane, float farPlane)
 		: point(x, y, z), fov(fov), aspectRatio(aspectRatio), nearPlane(nearPlane), farPlane(farPlane), name(name) {
 		calculateProjectionMatrix();
 
 		
+	}
+	camera() {
+
 	}
 	void calculateViewMatrix(float x, float y, float z);
 	void rotateViewMatrix(float pitch, float yaw, float roll);
@@ -95,7 +92,9 @@ public:
 
 struct cudaData {
 public:
-	std::vector<float*> M_data;
+	std::vector<float*> PM_data;//proj matrix
+	std::vector<float*> VM_data;//view matrix 
+	std::vector<float*> VR_data;//view matrix 
 	std::vector<float*> V_data;
 	std::vector<float*> R_data;
 };
@@ -109,9 +108,12 @@ struct mesh  {
 		vertexList = triangles;
 	}
 private:
-	float* d_matrix = nullptr;
+	float* d_ProjMatrix = nullptr;
+	float* d_ViewMatrix = nullptr;
 	float* d_vector = nullptr;
 	float* d_result = nullptr;
+	float* d_ViewResult = nullptr;
+
 	cudaData mData;
 	ThreadPool* Meshpool = nullptr;
 	int batchSize = 3;
@@ -121,6 +123,7 @@ private:
 public:
 	std::string Name;
 	std::vector<triangle> vertexList;
+	std::vector<triangle> deRenderedVertexList;
 	boolean init = false;
 	int threads = 0;
 	std::vector<std::vector<std::array<POINT, 3>>> DrawMesh(HDC hdc, COLORREF color, double width, double height, camera& cam);
@@ -130,14 +133,13 @@ public:
 	void setBatchSize(size_t size);
 	void initDraw();
 	void setPool(ThreadPool* pool);
-	void freePool();
+	bool deRenderRoutine();
 };
 
 struct world{
 private:
-	camera worldCam;
+	camera *worldCam = nullptr;
 	ThreadPool* pool;
-	std::map<std::string, mesh> worldObjects;
 	std::vector<std::string> meshes;
 	void initMesh(mesh& Mesh);
 	void DrawTriangle(HDC hdc, const std::vector<std::vector<std::array<POINT, 3>>>& pArray, COLORREF color);
@@ -145,10 +147,17 @@ public:
 	int totalMeshes;
 	void renderWorld(HDC hdc, COLORREF color, double width, double height);
 	void setThreadPool(ThreadPool* givenPool);
-	void addMesh(mesh& Mesh);
+	mesh& addMesh(mesh& Mesh);
+	mesh& returnMesh(std::string name);
+	mesh& addMeshNotRendered(mesh& Mesh);
 	void removeMesh(mesh& mesh);
 	void removeMeshByName(std::string name);
 	void setCam(camera& cam);
+	mesh& deRenderObject(std::string name);
+	std::map<std::string, mesh> worldObjects;
+	std::map<std::string, mesh> unRenderdObjects;
+
+
 	
 
 

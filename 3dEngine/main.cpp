@@ -6,13 +6,15 @@ float cameraX = 0.0f;;
 float cameraY = 0.0f; 
 float cameraZ = 0.0f; 
 std::string cameraName = "MainCamera"; 
-float fov = 60.0f; //
+float fov = 90.0f; //
 float aspectRatio = 16.0f / 9.0f; 
 float nearPlane = 0.1f; // Near clipping plane
 float farPlane = 100.0f; // Far clipping plane
 camera cam(cameraX, cameraY, cameraZ, cameraName, fov, aspectRatio, nearPlane, farPlane);
-mesh cube = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
-mesh cube1 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+mesh dolphin = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+mesh car = loadOBJ("C:\\Users\\Boden\\Downloads\\uploads_files_2792345_Koenigsegg.obj");
+mesh dolphin1 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+mesh dolphin2 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
 
 world World;
 
@@ -28,13 +30,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     case WM_CREATE:
         pool = createThreadPool(std::thread::hardware_concurrency());
         //pool = createThreadPool(1);
-        cube1.Name = "meshTest";
-        cube.Name = "OG";
-
+        dolphin.Name = "dolphin";
+        dolphin1.Name = "dolphin2";
+        dolphin2.Name = "OG2";
+        car.Name = "car";
         World.setThreadPool(pool);
         World.setCam(cam);
-        World.addMesh(cube);
-        World.addMesh(cube1);
+        World.addMesh(dolphin);
+        World.worldObjects.at("dolphin").rotate(90, 0, 0);
+
+        
+
 
 
 
@@ -75,29 +81,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         else {
             break;
         }
-        /*point p1(0, 0, 0);
-        point p2(0,0.5,0);
-        point p3(0.5,0,0);
-        triangle test(p1, p2, p3);
-        mesh Mesh;
-        Mesh.vertexList.push_back(test);*/
         cam.aspectRatio = width / height;
-        cam.moveCam( 0.1f);
-        cam.rotateCam( 10);
-        cube.transform( 0.0f, 0.0f, 0.0f);
- 
+        cam.moveCam( 0.0f);
+        cam.rotateCam(1);
         HDC hdesktop = GetDC(0);
         HDC memdc = CreateCompatibleDC(hdesktop);
        
         HBITMAP hbitmap = CreateCompatibleBitmap(hdesktop, width, height);
         
-        gmtl::Vec4f cen = cube.Center();
+        gmtl::Vec4f cen = dolphin.Center();
         SelectObject(memdc, hbitmap);
         // Fill the bitmap with red color
         
         COLORREF redColor = RGB(255, 0, 0);
 
-        cube.rotate(0, 10, 0);
+        //World.worldObjects.at("OG").rotate(0, 0, 2);
+        World.worldObjects.at("dolphin").rotate(0, 1, 1);
+
+
+        
+
         World.renderWorld(memdc, redColor, width, height);
         //fps calculation
         auto stop = std::chrono::high_resolution_clock::now();

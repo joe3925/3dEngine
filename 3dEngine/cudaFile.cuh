@@ -9,6 +9,6 @@
 class triangle;
 class point2D;
 
-void projectTriangles3Dto2DWithCuda(const std::vector<triangle>& triangles, const float(&matrix)[16],  std::vector<point2D>& outPts2D, float* d_matrix, float* d_vectors, float* d_results);
+cudaError_t projectTriangles3Dto2DWithCuda(const std::vector<triangle>& triangles, const float(&ViewMatrix)[16], const float(&ProjMatrix)[16], std::vector<point2D>& outPts2D, float* d_ViewResults, float* v_matrix, float* p_matrix, float* d_vectors, float* d_results);
 
 #endif 

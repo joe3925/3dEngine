@@ -44,10 +44,15 @@ public:
 };
 struct point2D {
 public:
+	bool render;
 	float x, y;
 
 	point2D(float x, float y) : x(x), y(y) {}
 	void fixPoint(int width, int height);
+};
+struct m_point {
+	bool render;
+	POINT point;
 };
 POINT ConvertFromPoint2D(point2D& pt2D);
 
@@ -118,7 +123,7 @@ private:
 	ThreadPool* Meshpool = nullptr;
 	int batchSize = 3;
 	gmtl::Vec4f translateRotateTranslate(const gmtl::Vec4f& position, const gmtl::Vec4f& center, const gmtl::Matrix44f& rotationMatrix);
-	void triangleWrapper(std::vector<triangle>& triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread);
+	void triangleWrapper(std::vector<triangle>& triangles, float width, float height, camera& cam, std::vector<std::array<m_point, 3>>& fixed, int currentThread);
 
 public:
 	std::string Name;
@@ -126,14 +131,13 @@ public:
 	std::vector<triangle> deRenderedVertexList;
 	boolean init = false;
 	int threads = 0;
-	std::vector<std::vector<std::array<POINT, 3>>> DrawMesh(HDC hdc, COLORREF color, double width, double height, camera& cam);
+	std::vector<std::vector<std::array<m_point, 3>>> DrawMesh(HDC hdc, COLORREF color, double width, double height, camera& cam);
 	void transform(float x, float y, float z);
 	gmtl::Vec4f Center();
 	void rotate(float x, float y, float z);
 	void setBatchSize(size_t size);
 	void initDraw();
 	void setPool(ThreadPool* pool);
-	bool deRenderRoutine();
 };
 
 struct world{
@@ -141,21 +145,21 @@ private:
 	camera *worldCam = nullptr;
 	ThreadPool* pool;
 	std::vector<std::string> meshes;
-	void initMesh(mesh& Mesh);
-	void DrawTriangle(HDC hdc, const std::vector<std::vector<std::array<POINT, 3>>>& pArray, COLORREF color);
+	void initMesh(mesh* Mesh);
+	void DrawTriangle(HDC hdc, std::vector<std::vector<std::array<m_point, 3>>>& pArray, COLORREF color);
 public:
 	int totalMeshes;
 	void renderWorld(HDC hdc, COLORREF color, double width, double height);
 	void setThreadPool(ThreadPool* givenPool);
-	mesh& addMesh(mesh& Mesh);
-	mesh& returnMesh(std::string name);
-	mesh& addMeshNotRendered(mesh& Mesh);
-	void removeMesh(mesh& mesh);
+	mesh* addMesh(mesh* Mesh);
+	mesh* returnMesh(std::string name);
+	mesh* addMeshNotRendered(mesh* Mesh);
+	void removeMesh(mesh* Mesh);
 	void removeMeshByName(std::string name);
 	void setCam(camera& cam);
-	mesh& deRenderObject(std::string name);
-	std::map<std::string, mesh> worldObjects;
-	std::map<std::string, mesh> unRenderdObjects;
+	mesh* deRenderObject(std::string name);
+	std::map<std::string, mesh*> worldObjects;
+	std::map<std::string, mesh*> unRenderdObjects;
 
 
 	

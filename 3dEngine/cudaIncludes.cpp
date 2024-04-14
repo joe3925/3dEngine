@@ -30,8 +30,38 @@ POINT ConvertFromPoint2D(point2D& pt2D)
 	pt.y = static_cast<LONG>(pt2D.y);
 	return pt;
 }
-	
+std::vector<std::vector<std::array<POINT, 3>>> convertPointArrays(const std::vector<std::vector<std::array<m_point, 3>>>& sourceArray) {
+	std::vector<std::vector<std::array<POINT, 3>>> destArray;
+	destArray.clear();  // Ensure the destination is empty before starting the conversion
+
+	// Resize the destination array to match the size of the source array
+	destArray.resize(sourceArray.size());
+
+	// Iterate through each sub-vector
+	for (size_t i = 0; i < sourceArray.size(); ++i) {
+		// Resize each sub-vector in the destination to match the source
+		destArray[i].resize(sourceArray[i].size());
+
+		// Iterate through each array of m_point
+		for (size_t j = 0; j < sourceArray[i].size(); ++j) {
+			// Convert each m_point to POINT and store it in the corresponding position
+			for (size_t k = 0; k < 3; ++k) {
+				destArray[i][j][k] = sourceArray[i][j][k].point;  // Copy only the POINT part
+			}
+		}
+	}
+	return destArray;
+}
 void point2D::fixPoint(int width, int height) {
+	if (x > 1 || x < -1) {
+		render = false;
+	}
+	if (y > 1 || y < -1) {
+		render = false;
+	}
+	else {
+		render = true;
+	}
 		x = (x + 1.0f) * 0.5f * width;
 
 
@@ -178,7 +208,16 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 		return translatedPosition;
 	}
 	void mesh::initDraw() {
-		for (int i = 0; i < threads; i++) {
+		int fullSets;
+		int batchSizeL;
+		if (batchSize > vertexList.size()) {
+			batchSizeL = vertexList.size();
+			fullSets = vertexList.size() / batchSize;
+		}
+		else {
+			batchSizeL = batchSize;
+			fullSets = vertexList.size() / batchSize;
+		}		for (int i = 0; i < fullSets; i++) {
 			cudaMallocHost((void**)&d_ProjMatrix, sizeof(float) * 16);
 			cudaMallocHost((void**)&d_ViewMatrix, sizeof(float) * 16);
 			cudaMallocHost((void**)&d_vector, sizeof(float) * batchSize * 12);
@@ -191,21 +230,21 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 			mData.R_data.push_back(d_result);
 		}
 	}
-	void mesh::triangleWrapper( std::vector<triangle>& const triangles, float width, float height, camera& cam, std::vector<std::array<POINT, 3>>& fixed, int currentThread) {
+	void mesh::triangleWrapper( std::vector<triangle>& const triangles, float width, float height, camera& cam, std::vector<std::array<m_point, 3>>& fixed, int currentThread) {
 		// Calculate the total number of vertices
 		int totalVertices = triangles.size() * 3;
 		std::vector<point2D> arg3D;
 
 		// Process the triangles' vertices through CUDA
 		projectTriangles3Dto2DWithCuda(triangles, cam.viewMatrix.mData, cam.projectionMatrix.mData, arg3D, mData.VR_data[currentThread], mData.VM_data[currentThread], mData.PM_data[currentThread], mData.V_data[currentThread], mData.R_data[currentThread]);
-
 		// Iterate over all triangles
 		for (size_t t = 0; t < triangles.size(); ++t) {
 			// Fix the points for each triangle (-1 - 1 to 0 - width, 0 - height)
-			std::array<POINT, 3> points;
+			std::array<m_point, 3> points;
 			for (int i = 0; i < 3; ++i) {
 				arg3D[t * 3 + i].fixPoint(width, height);
-				points[i] = ConvertFromPoint2D(arg3D[t * 3 + i]);
+				points[i].point = ConvertFromPoint2D(arg3D[t * 3 + i]);
+				points[i].render = arg3D[t * 3 + i].render;
 			}
 
 			fixed.push_back(points);
@@ -214,14 +253,21 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 
 
 
-	void world::DrawTriangle(HDC hdc, const std::vector<std::vector<std::array<POINT, 3>>>& pArray, COLORREF color) {
+	void world::DrawTriangle(HDC hdc,std::vector<std::vector<std::array<m_point, 3>>>& pArray, COLORREF color) {
 		HPEN hPen = CreatePen(PS_SOLID, 1, color);
 		HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
+		int i = 0;
 		// Draw the triangle
-		for (auto& fixedPointsBatch : pArray) {
+		std::vector<std::vector<std::array<POINT, 3>>> Array = convertPointArrays(pArray);
+		for (auto& fixedPointsBatch : Array) {
+			int j = 0;
 			for (auto& points : fixedPointsBatch) {
-				Polyline(hdc, points.data(), 3);
+				if (pArray[i][j][2].render != false && pArray[i][j][2].render != false && pArray[i][j][2].render != false) {
+					Polyline(hdc, points.data(), 3);
+				}
+				j++;
 			}
+			i++;
 		}
 		SelectObject(hdc, hOldPen);
 		DeleteObject(hPen);
@@ -243,8 +289,8 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 			vertexList[i].p2.Position[2] += z;
 
 			vertexList[i].p3.Position[0] += x;
-			vertexList[i].p3.Position[0] += y;
-			vertexList[i].p3.Position[0] += z;
+			vertexList[i].p3.Position[1] += y;
+			vertexList[i].p3.Position[2] += z;
 		}
 	}
 	gmtl::Vec4f mesh::Center() {
@@ -275,41 +321,45 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 		}
 	}
 
-	mesh& world::addMesh(mesh &Mesh) {
-		worldObjects[Mesh.Name] = Mesh;
-		meshes.push_back(Mesh.Name);
-		worldObjects[Mesh.Name].setPool(pool);
-		initMesh(worldObjects[Mesh.Name]);
+	mesh* world::addMesh(mesh *Mesh) {
+		worldObjects[Mesh->Name] = Mesh;
+		meshes.push_back(Mesh->Name);
+		worldObjects[Mesh->Name]->setPool(pool);
+		initMesh(worldObjects[Mesh->Name]);
 		totalMeshes++;
-		return worldObjects[Mesh.Name];
+		return worldObjects[Mesh->Name];
 	}
-	mesh& world::addMeshNotRendered(mesh& Mesh) {
-		unRenderdObjects[Mesh.Name] = Mesh;
-		meshes.push_back(Mesh.Name);
-		unRenderdObjects[Mesh.Name].setPool(pool);
-		initMesh(unRenderdObjects[Mesh.Name]);
+	mesh* world::addMeshNotRendered(mesh* Mesh) {
+		unRenderdObjects[Mesh->Name] = Mesh;
+		meshes.push_back(Mesh->Name);
+		unRenderdObjects[Mesh->Name]->setPool(pool);
+		initMesh(unRenderdObjects[Mesh->Name]);
 		totalMeshes++;
-		return unRenderdObjects[Mesh.Name];
+		return unRenderdObjects[Mesh->Name];
 	}
-	mesh& world::returnMesh(std::string name) {
+	mesh* world::returnMesh(std::string name) {
 		return worldObjects.at(name);
 	}
-	mesh& world::deRenderObject(std::string name) {
+	mesh* world::deRenderObject(std::string name) {
 		unRenderdObjects[name] = worldObjects.at(name);
 		removeMesh(worldObjects.at(name));
+
 		return unRenderdObjects.at(name);
 	}
-	void world::removeMesh(mesh& Mesh) {
-		std::string name = Mesh.Name;
+	void world::removeMesh(mesh* Mesh) {
+		std::string name = Mesh->Name;
 		auto i = std::find(meshes.begin(), meshes.end(), name);
-		meshes.erase(meshes.begin(), i);
-		worldObjects.erase(Mesh.Name);
+		if (i != meshes.end()) {
+			meshes.erase(i); 
+		}
+		worldObjects.erase(Mesh->Name);
 		totalMeshes--;
 	}
 	void world::removeMeshByName(std::string name) {
 		auto i = std::find(meshes.begin(), meshes.end(), name);
-		meshes.erase(meshes.begin(), i);
-		worldObjects.erase(name);
+		if (i != meshes.end()) {
+			meshes.erase(i); 
+		}		worldObjects.erase(name);
 		totalMeshes--;
 	}
 	void world::setCam(camera& cam) {

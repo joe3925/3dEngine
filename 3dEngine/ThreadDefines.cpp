@@ -2,22 +2,12 @@
 #include "cudaIncludes.h"
 #include "THpool.h"
 
-std::vector<std::vector<std::array<POINT, 3>>> mesh::DrawMesh(HDC hdc, COLORREF color, double width, double height, camera& cam) {
-	std::vector<std::future<std::vector<std::array<POINT, 3>>>> futures;
-	std::vector<std::vector<std::array<POINT, 3>>> allFixedPoints;
+std::vector<std::vector<std::array<m_point, 3>>> mesh::DrawMesh(HDC hdc, COLORREF color, double width, double height, camera& cam) {
+	std::vector<std::future<std::vector<std::array<m_point, 3>>>> futures;
+	std::vector<std::vector<std::array<m_point, 3>>> allFixedPoints;
 	std::mutex allFixedPointsMutex;
 	int batchSizeL;
 	int fullSets;
-	if (Meshpool == nullptr) {
-		std::vector<std::array<POINT, 3>> FixedPoints;
-		std::vector<std::vector<std::array<POINT, 3>>> FixedPointsTotal;
-
-		triangleWrapper(vertexList, width, height, cam, FixedPoints, 0);
-		FixedPointsTotal.push_back(FixedPoints);
-		
-
-		return FixedPointsTotal;
-	}
 	if (batchSize > vertexList.size()) {
 		batchSizeL = vertexList.size();
 		fullSets = vertexList.size() / batchSize;
@@ -26,12 +16,21 @@ std::vector<std::vector<std::array<POINT, 3>>> mesh::DrawMesh(HDC hdc, COLORREF 
 		batchSizeL = batchSize;
 		fullSets = vertexList.size() / batchSize;
 	}
+	if (Meshpool == nullptr) {
+		for (int i = 0; i < fullSets; ++i) {
+			std::vector<triangle> triangleBatch(vertexList.begin() + i * batchSizeL, vertexList.begin() + (i * batchSizeL) + batchSizeL);
+			std::vector<std::array<m_point, 3>> localFixedPoints;
+			triangleWrapper(triangleBatch, width, height, cam, localFixedPoints, i);
+			allFixedPoints.push_back(localFixedPoints);
+		}
+		return allFixedPoints;
+	}
 
 	for (int i = 0; i < fullSets; ++i) {
 		futures.push_back(Meshpool->enqueue([this, i, batchSizeL, width, height, &cam]() {
 
 			std::vector<triangle> triangleBatch(vertexList.begin() + i * batchSizeL, vertexList.begin() + (i * batchSizeL) + batchSizeL);
-			std::vector<std::array<POINT, 3>> localFixedPoints;
+			std::vector<std::array<m_point, 3>> localFixedPoints;
 			triangleWrapper(triangleBatch, width, height, cam, localFixedPoints, i);
 			return localFixedPoints; // Return the localFixedPoints directly
 			}));
@@ -48,7 +47,7 @@ std::vector<std::vector<std::array<POINT, 3>>> mesh::DrawMesh(HDC hdc, COLORREF 
 	int remainder = vertexList.size() % batchSizeL;
 	if (remainder != 0) {
 		std::vector<triangle> triangleBatch(vertexList.end() - remainder, vertexList.end());
-		std::vector<std::array<POINT, 3>> localFixedPoints;
+		std::vector<std::array<m_point, 3>> localFixedPoints;
 		triangleWrapper(triangleBatch, width, height, cam, localFixedPoints, 0);
 		allFixedPoints.push_back(std::move(localFixedPoints));
 	}
@@ -63,12 +62,12 @@ void mesh::setPool(ThreadPool* pool) {
 
 
 void world::renderWorld(HDC hdc, COLORREF color, double width, double height) {
-	std::vector<std::future<std::vector<std::vector<std::array<POINT, 3>>>>> futures;
-	std::vector<std::vector<std::vector<std::array<POINT, 3>>>> allMeshes;
+	std::vector<std::future<std::vector<std::vector<std::array<m_point, 3>>>>> futures;
+	std::vector<std::vector<std::vector<std::array<m_point, 3>>>> allMeshes;
 
 	if (pool == nullptr) {
 		for (int i = 0; i < worldObjects.size(); i++) {
-			allMeshes.push_back(worldObjects.at(meshes[i]).DrawMesh(hdc, color, width, height, *worldCam));
+			allMeshes.push_back(worldObjects.at(meshes[i])->DrawMesh(hdc, color, width, height, *worldCam));
 		}
 		for (auto& _2dMesh : allMeshes) {
 			DrawTriangle(hdc, _2dMesh, color);
@@ -78,7 +77,7 @@ void world::renderWorld(HDC hdc, COLORREF color, double width, double height) {
 	for (int i = 0; i < totalMeshes; i++) {
 		futures.push_back(pool->enqueue([this, i, hdc, color, width, height]()
 				{
-					return worldObjects.at(meshes[i]).DrawMesh(hdc, color, width, height, *worldCam);
+					return worldObjects.at(meshes[i])->DrawMesh(hdc, color, width, height, *worldCam);
 
 				}));
 	}
@@ -90,10 +89,7 @@ void world::renderWorld(HDC hdc, COLORREF color, double width, double height) {
 	for (auto& _2dMesh : allMeshes) {
 		DrawTriangle(hdc, _2dMesh, color);
 	}
-	while (pool->getTasks() != 0) {
-		int x;
-		x = 0;
-	}
+
 	return;
 
 }
@@ -101,13 +97,12 @@ void world::setThreadPool(ThreadPool* givenPool) {
 	pool = givenPool;
 }
 
-void world::initMesh(mesh &Mesh) {
+void world::initMesh(mesh *Mesh) {
 	if (pool == nullptr) {
-		Mesh.threads = 1;
+		Mesh->threads = 1;
 	}
 	else {
-		Mesh.threads = pool->numThreads;
+		Mesh->threads = pool->numThreads;
 	}
-	Mesh.setBatchSize(Mesh.vertexList.size() / Mesh.threads);
-	Mesh.initDraw();
+	Mesh->initDraw();
 }

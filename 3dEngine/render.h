@@ -31,7 +31,7 @@
 
 
 
-mesh loadOBJ(const std::string& filename);
+mesh* loadOBJ(const std::string& filename);
 ThreadPool* createThreadPool(size_t size);
 
 ThreadPool* createThreadPool(size_t size) {
@@ -104,11 +104,11 @@ mesh CreateCube(float center_x, float center_y, float center_z, float edge_lengt
 		}
 	}
 }*/
-mesh loadOBJ(const std::string& filename) {
+mesh* loadOBJ(const std::string& filename) {
 	std::ifstream file(filename);
 	if (!file.is_open()) {
 		std::vector <triangle> fail;
-		return  mesh(fail);
+		return  new mesh(fail);
 	}
 
 	std::vector<triangle> tri;
@@ -139,7 +139,7 @@ mesh loadOBJ(const std::string& filename) {
 
 	}
 
-	return mesh(tri);
+	return new mesh(tri);
 }
 
 

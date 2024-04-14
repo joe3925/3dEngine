@@ -6,15 +6,15 @@ float cameraX = 0.0f;;
 float cameraY = 0.0f; 
 float cameraZ = 0.0f; 
 std::string cameraName = "MainCamera"; 
-float fov = 90.0f; //
+float fov = 60.0f; //
 float aspectRatio = 16.0f / 9.0f; 
 float nearPlane = 0.1f; // Near clipping plane
 float farPlane = 100.0f; // Far clipping plane
 camera cam(cameraX, cameraY, cameraZ, cameraName, fov, aspectRatio, nearPlane, farPlane);
-mesh dolphin = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
-mesh car = loadOBJ("C:\\Users\\Boden\\Downloads\\uploads_files_2792345_Koenigsegg.obj");
-mesh dolphin1 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
-mesh dolphin2 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+mesh* dolphin = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+mesh* car = loadOBJ("C:\\Users\\Boden\\Downloads\\uploads_files_2792345_Koenigsegg.obj");
+mesh* dolphin1 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
+mesh* dolphin2 = loadOBJ("C:\\Users\\boden\\Downloads\\10014_dolphin_v2_max2011_it2.obj");
 
 world World;
 
@@ -30,14 +30,24 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     case WM_CREATE:
         pool = createThreadPool(std::thread::hardware_concurrency());
         //pool = createThreadPool(1);
-        dolphin.Name = "dolphin";
-        dolphin1.Name = "dolphin2";
-        dolphin2.Name = "OG2";
-        car.Name = "car";
+        dolphin->Name = "dolphin";
+        dolphin1->Name = "dolphin2";
+        dolphin2->Name = "OG2";
+        car->Name = "car";
+        car->setBatchSize(car->vertexList.size());
+        dolphin->setBatchSize(dolphin->vertexList.size());
         World.setThreadPool(pool);
         World.setCam(cam);
-        World.addMesh(dolphin);
-        World.worldObjects.at("dolphin").rotate(90, 0, 0);
+        dolphin = World.addMesh(dolphin);
+        car = World.addMesh(car);
+        dolphin->rotate(90, 0, 0);
+        car->rotate(0, 0, 180);
+        car->transform(0, 5, 25);
+        World.deRenderObject("car");
+
+
+
+
 
         
 
@@ -83,20 +93,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         }
         cam.aspectRatio = width / height;
         cam.moveCam( 0.0f);
-        cam.rotateCam(1);
+        cam.rotateCam(3);
         HDC hdesktop = GetDC(0);
         HDC memdc = CreateCompatibleDC(hdesktop);
        
         HBITMAP hbitmap = CreateCompatibleBitmap(hdesktop, width, height);
         
-        gmtl::Vec4f cen = dolphin.Center();
+        gmtl::Vec4f cen = dolphin->Center();
         SelectObject(memdc, hbitmap);
         // Fill the bitmap with red color
         
         COLORREF redColor = RGB(255, 0, 0);
 
         //World.worldObjects.at("OG").rotate(0, 0, 2);
-        World.worldObjects.at("dolphin").rotate(0, 1, 1);
+        dolphin->rotate(0, 1, 1);
+        dolphin->transform(0, 0, 0.03);
+
+
 
 
         

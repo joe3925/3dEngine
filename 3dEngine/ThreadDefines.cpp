@@ -64,7 +64,6 @@ void mesh::setPool(ThreadPool* pool) {
 void world::renderWorld(HDC hdc, COLORREF color, double width, double height) {
 	std::vector<std::future<std::vector<std::vector<std::array<m_point, 3>>>>> futures;
 	std::vector<std::vector<std::vector<std::array<m_point, 3>>>> allMeshes;
-
 	if (pool == nullptr) {
 		for (int i = 0; i < worldObjects.size(); i++) {
 			allMeshes.push_back(worldObjects.at(meshes[i])->DrawMesh(hdc, color, width, height, *worldCam));

@@ -22,7 +22,6 @@
 #include "cudaIncludes.h"
 #include <cudaFile.cuh>
 
-
 POINT ConvertFromPoint2D(point2D& pt2D)
 {
 	POINT pt;
@@ -218,16 +217,18 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 			batchSizeL = batchSize;
 			fullSets = vertexList.size() / batchSize;
 		}		for (int i = 0; i < fullSets; i++) {
-			cudaMallocHost((void**)&d_ProjMatrix, sizeof(float) * 16);
 			cudaMallocHost((void**)&d_ViewMatrix, sizeof(float) * 16);
 			cudaMallocHost((void**)&d_vector, sizeof(float) * batchSize * 12);
 			cudaMallocHost((void**)&d_result, sizeof(float) * batchSize * 12);
 			cudaMallocHost((void**)&d_ViewResult, sizeof(float) * batchSize * 12);
+			cudaMallocHost((void**)&bytesReturned, sizeof(int));
+
 			mData.VM_data.push_back(d_ViewMatrix);
-			mData.PM_data.push_back(d_ProjMatrix);
 			mData.V_data.push_back(d_vector);
 			mData.VR_data.push_back(d_ViewResult);
 			mData.R_data.push_back(d_result);
+			mData.bytesReturned.push_back(bytesReturned);
+
 		}
 	}
 	void mesh::triangleWrapper( std::vector<triangle>& const triangles, float width, float height, camera& cam, std::vector<std::array<m_point, 3>>& fixed, int currentThread) {
@@ -236,9 +237,9 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 		std::vector<point2D> arg3D;
 
 		// Process the triangles' vertices through CUDA
-		projectTriangles3Dto2DWithCuda(triangles, cam.viewMatrix.mData, cam.projectionMatrix.mData, arg3D, mData.VR_data[currentThread], mData.VM_data[currentThread], mData.PM_data[currentThread], mData.V_data[currentThread], mData.R_data[currentThread]);
+		projectTriangles3Dto2DWithCuda(triangles, cam.viewMatrix.mData,  arg3D, mData.VR_data[currentThread],cam.d_ProjMatrix, mData.VM_data[currentThread], mData.V_data[currentThread], mData.R_data[currentThread], mData.bytesReturned[currentThread]);
 		// Iterate over all triangles
-		for (size_t t = 0; t < triangles.size(); ++t) {
+		for (size_t t = 0; t < arg3D.size()/3; ++t) {
 			// Fix the points for each triangle (-1 - 1 to 0 - width, 0 - height)
 			std::array<m_point, 3> points;
 			for (int i = 0; i < 3; ++i) {
@@ -262,7 +263,7 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 		for (auto& fixedPointsBatch : Array) {
 			int j = 0;
 			for (auto& points : fixedPointsBatch) {
-				if (pArray[i][j][2].render != false && pArray[i][j][2].render != false && pArray[i][j][2].render != false) {
+				if (pArray[i][j][2].render != false) {
 					Polyline(hdc, points.data(), 3);
 				}
 				j++;
@@ -272,7 +273,6 @@ void camera::calculateViewMatrix(float x, float y, float z) {
 		SelectObject(hdc, hOldPen);
 		DeleteObject(hPen);
 	}
-
 	void mesh::setBatchSize(size_t size) {
 		batchSize = size;
 	}

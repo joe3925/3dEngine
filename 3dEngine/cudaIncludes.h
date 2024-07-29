@@ -25,8 +25,10 @@
 #include <type_traits>
 #include <map>
 
-
+#include "cudaFile.cuh"
 class ThreadPool;
+void copyProjMatrix(float* p_matrix, const float(&ProjMatrix)[16]);
+
 
 struct point {
 public:
@@ -62,6 +64,8 @@ public:
 	float nearPlane;
 	float farPlane;
 	float aspectRatio;
+	float* d_ProjMatrix = nullptr;
+
 	point location;
 	gmtl::Matrix44f projectionMatrix;
 	gmtl::Matrix44f viewMatrix;
@@ -69,8 +73,8 @@ public:
 	camera(float x, float y, float z, std::string name, float fov, float aspectRatio, float nearPlane, float farPlane)
 		: point(x, y, z), fov(fov), aspectRatio(aspectRatio), nearPlane(nearPlane), farPlane(farPlane), name(name) {
 		calculateProjectionMatrix();
-
-		
+		cudaMallocHost((void**)&d_ProjMatrix, sizeof(float) * 16);
+		copyProjMatrix(d_ProjMatrix, projectionMatrix.mData);
 	}
 	camera() {
 
@@ -102,6 +106,7 @@ public:
 	std::vector<float*> VR_data;//view matrix 
 	std::vector<float*> V_data;
 	std::vector<float*> R_data;
+	std::vector<int*> bytesReturned;
 };
 
 
@@ -113,11 +118,12 @@ struct mesh  {
 		vertexList = triangles;
 	}
 private:
-	float* d_ProjMatrix = nullptr;
 	float* d_ViewMatrix = nullptr;
 	float* d_vector = nullptr;
 	float* d_result = nullptr;
 	float* d_ViewResult = nullptr;
+	int* bytesReturned = nullptr;
+
 
 	cudaData mData;
 	ThreadPool* Meshpool = nullptr;
@@ -158,6 +164,7 @@ public:
 	void removeMeshByName(std::string name);
 	void setCam(camera& cam);
 	mesh* deRenderObject(std::string name);
+	void init();
 	std::map<std::string, mesh*> worldObjects;
 	std::map<std::string, mesh*> unRenderdObjects;
 
